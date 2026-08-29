@@ -23,18 +23,14 @@ public class OverlayService extends Service {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        // Create a transparent native WebView
         webView = new WebView(this);
         webView.setBackgroundColor(Color.TRANSPARENT);
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
-        
-        // Load the Capacitor web assets directly
         webView.loadUrl("file:///android_asset/public/index.html");
 
-        // Define the floating window properties
         params = new WindowManager.LayoutParams(
-                500, 500, // Width and Height of the floating box
+                500, 500,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                         : WindowManager.LayoutParams.TYPE_PHONE,
@@ -45,7 +41,6 @@ public class OverlayService extends Service {
         params.x = 100;
         params.y = 200;
 
-        // Make the floating window draggable
         webView.setOnTouchListener(new View.OnTouchListener() {
             private int initialX;
             private int initialY;
@@ -60,7 +55,7 @@ public class OverlayService extends Service {
                         initialY = params.y;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
-                        return false; // Return false so the web app still registers the click!
+                        return false;
                     case MotionEvent.ACTION_MOVE:
                         params.x = initialX + (int) (event.getRawX() - initialTouchX);
                         params.y = initialY + (int) (event.getRawY() - initialTouchY);
@@ -74,10 +69,19 @@ public class OverlayService extends Service {
         windowManager.addView(webView, params);
     }
 
+    // THIS IS THE NEW KILL SWITCH
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        stopSelf(); // Kill the service when swiped from recents
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (webView != null) windowManager.removeView(webView);
+        if (webView != null && windowManager != null) {
+            windowManager.removeView(webView);
+        }
     }
 
     @Override

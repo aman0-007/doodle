@@ -6,20 +6,34 @@ import android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
 import android.os.Build;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
+        // Make the activity window transparent
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            // Ask for permission if we don't have it
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
             startActivityForResult(intent, 2084);
         } else {
-            // We have permission! Start the floating service and close the main app.
+            // Start the floating service, but DO NOT call finish()
             startService(new Intent(this, OverlayService.class));
-            finish();
+            
+            // Move the main app to the background seamlessly
+            moveTaskToBack(true); 
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         }
     }
     
@@ -29,7 +43,7 @@ public class MainActivity extends BridgeActivity {
         if (requestCode == 2084 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (Settings.canDrawOverlays(this)) {
                 startService(new Intent(this, OverlayService.class));
-                finish();
+                moveTaskToBack(true);
             }
         }
     }
