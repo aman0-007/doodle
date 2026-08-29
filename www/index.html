@@ -5,222 +5,167 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Doodle Buddy</title>
   <style>
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: transparent; /* Dark preview background; set to transparent for overlay */
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
+    html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; font-family: sans-serif; }
 
-    /* Doodle Body & Bobbing Animation */
-    .doodle-container {
-      position: relative;
-      width: 160px;
-      height: 160px;
-      cursor: pointer;
-      animation: float 3s ease-in-out infinite;
-    }
+    /* Base Doodle */
+    .doodle-container { position: relative; width: 140px; height: 140px; cursor: pointer; animation: float 3s ease-in-out infinite; transition: transform 0.2s; }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
 
-    @keyframes float {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-12px) rotate(2deg); }
-    }
+    .face { width: 100%; height: 100%; background: #fff8e7; border: 5px solid #222; border-radius: 50% 50% 45% 45%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .face:active { transform: scale(0.9) scaleY(0.95); } /* Squish on tap */
 
-    /* Doodle Head */
-    .face {
-      width: 100%;
-      height: 100%;
-      background: #fff8e7;
-      border: 5px solid #222;
-      border-radius: 50% 50% 45% 45%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
+    /* Eyes & Mouth */
+    .eyes-container { display: flex; gap: 24px; margin-top: -10px; z-index: 2; }
+    .eye { width: 20px; height: 28px; background: #222; border-radius: 50%; position: relative; transition: all 0.1s; }
+    .pupil { width: 8px; height: 8px; background: #fff; border-radius: 50%; position: absolute; top: 4px; left: 4px; transition: transform 0.05s linear; }
+    .mouth { width: 16px; height: 8px; border-bottom: 4px solid #222; border-radius: 0 0 20px 20px; margin-top: 10px; transition: all 0.2s; }
 
-    .face:active {
-      transform: scale(0.92);
-    }
+    /* Moods & States */
+    .angry .face { background: #ff4d4d; }
+    .angry .eye { height: 10px; border-radius: 0; transform: rotate(15deg); }
+    .angry .eyes-container .eye:first-child { transform: rotate(-15deg); }
+    .angry .mouth { border-bottom: none; border-top: 4px solid #222; border-radius: 20px 20px 0 0; }
 
-    /* Eyes */
-    .eyes-container {
-      display: flex;
-      gap: 32px;
-      margin-top: -10px;
-    }
+    .asleep .eye { height: 4px; margin-top: 12px; }
+    .asleep .pupil { display: none; }
+    .asleep .mouth { width: 10px; height: 10px; border: 4px solid #222; border-radius: 50%; }
 
-    .eye {
-      width: 24px;
-      height: 32px;
-      background: #222;
-      border-radius: 50%;
-      position: relative;
-      overflow: hidden;
-      transition: height 0.1s ease;
-    }
-
-    .pupil {
-      width: 10px;
-      height: 10px;
-      background: #fff;
-      border-radius: 50%;
-      position: absolute;
-      top: 4px;
-      left: 4px;
-      transition: transform 0.05s linear;
-    }
-
-    /* Blinking Animation */
-    .blink {
-      height: 3px !important;
-      margin-top: 14px;
-    }
-
-    /* Cheeks */
-    .cheeks {
-      position: absolute;
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      padding: 0 18px;
-      top: 55%;
-    }
-
-    .blush {
-      width: 16px;
-      height: 10px;
-      background: #ff7597;
-      border-radius: 50%;
-      opacity: 0.6;
-    }
-
-    /* Mouth */
-    .mouth {
-      width: 20px;
-      height: 10px;
-      border-bottom: 4px solid #222;
-      border-radius: 0 0 20px 20px;
-      margin-top: 6px;
-      transition: all 0.2s ease;
-    }
-
-    .happy-mouth {
-      width: 26px;
-      height: 16px;
-      background: #e63946;
-      border: 3px solid #222;
-      border-radius: 0 0 25px 25px;
-    }
-
-    /* Floating Status Message */
-    .bubble {
-      position: absolute;
-      top: -45px;
-      background: #fff;
-      border: 3px solid #222;
-      padding: 4px 12px;
-      border-radius: 16px;
-      font-size: 13px;
-      font-weight: bold;
-      color: #222;
-      white-space: nowrap;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.2s ease;
-      pointer-events: none;
-    }
-
-    .bubble.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .charging .face { box-shadow: 0 0 30px #00ffcc, inset 0 0 15px #00ffcc; }
+    
+    .tired .face { background: #dcdcdc; }
+    .tired .eye { height: 16px; margin-top: 6px; opacity: 0.7; }
+    
+    /* Accessories */
+    .accessory { position: absolute; z-index: 3; transition: opacity 0.3s; opacity: 0; pointer-events: none; }
+    #sunglasses { width: 110px; top: 35px; opacity: 0; font-size: 40px; text-align: center; line-height: 40px; }
+    #nightcap { width: 80px; top: -35px; right: -10px; font-size: 50px; }
+    
+    /* Particles */
+    .particle { position: absolute; font-size: 20px; font-weight: bold; pointer-events: none; animation: floatUp 1s forwards; opacity: 0; z-index: 4; }
+    @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 100% { opacity: 0; transform: translateY(-40px) scale(1.2); } }
   </style>
 </head>
 <body>
 
   <div class="doodle-container" id="doodle">
-    <div class="bubble" id="chatBubble">Hey there! ✨</div>
-    <div class="face">
+    <div id="nightcap" class="accessory">💤</div>
+    <div id="sunglasses" class="accessory">🕶️</div>
+    <div class="face" id="face">
       <div class="eyes-container">
-        <div class="eye"><div class="pupil" id="pupilL"></div></div>
-        <div class="eye"><div class="pupil" id="pupilR"></div></div>
-      </div>
-      <div class="cheeks">
-        <div class="blush"></div>
-        <div class="blush"></div>
+        <div class="eye"><div class="pupil"></div></div>
+        <div class="eye"><div class="pupil"></div></div>
       </div>
       <div class="mouth" id="mouth"></div>
     </div>
   </div>
 
   <script>
-    const pupilL = document.getElementById('pupilL');
-    const pupilR = document.getElementById('pupilR');
-    const eyes = document.querySelectorAll('.eye');
-    const mouth = document.getElementById('mouth');
     const doodle = document.getElementById('doodle');
-    const bubble = document.getElementById('chatBubble');
-
-    const phrases = ["Bloop! 🫧", "Peek-a-boo! 👀", "What ya doing? 📱", "Boop! ✨", "Hehe! 😄"];
-
-    // 1. Automatic Blinking Loop
-    function scheduleBlink() {
-      const nextBlink = Math.random() * 3000 + 2000;
-      setTimeout(() => {
-        eyes.forEach(e => e.classList.add('blink'));
-        setTimeout(() => {
-          eyes.forEach(e => e.classList.remove('blink'));
-          scheduleBlink();
-        }, 150);
-      }, nextBlink);
-    }
-    scheduleBlink();
-
-    // 2. Eyes Follow Touch / Cursor
-    function trackEyes(x, y) {
-      const rect = doodle.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      const angle = Math.atan2(y - centerY, x - centerX);
-      const dist = Math.min(6, Math.hypot(x - centerX, y - centerY) / 20);
-
-      const moveX = Math.cos(angle) * dist;
-      const moveY = Math.sin(angle) * dist;
-
-      pupilL.style.transform = `translate(${moveX}px, ${moveY}px)`;
-      pupilR.style.transform = `translate(${moveX}px, ${moveY}px)`;
+    const face = document.getElementById('face');
+    
+    let state = "awake"; 
+    let idleTimer;
+    let tapCount = 0;
+    let tapTimeout;
+    
+    // 1. Time Context
+    function updateTime() {
+      const hour = new Date().getHours();
+      const isNight = hour >= 20 || hour < 6;
+      document.getElementById('nightcap').style.opacity = isNight && state === "asleep" ? "1" : "0";
+      document.getElementById('sunglasses').style.opacity = (!isNight && state === "awake") ? "1" : "0";
     }
 
-    window.addEventListener('mousemove', (e) => trackEyes(e.clientX, e.clientY));
-    window.addEventListener('touchmove', (e) => {
-      if (e.touches[0]) trackEyes(e.touches[0].clientX, e.touches[0].clientY);
-    });
+    // 2. Battery Context
+    async function initBattery() {
+      try {
+        const battery = await navigator.getBattery();
+        const updateBattery = () => {
+          if (battery.charging) face.parentElement.classList.add('charging');
+          else face.parentElement.classList.remove('charging');
+          
+          if (battery.level <= 0.2 && !battery.charging) face.parentElement.classList.add('tired');
+          else face.parentElement.classList.remove('tired');
+        };
+        updateBattery();
+        battery.addEventListener('chargingchange', updateBattery);
+        battery.addEventListener('levelchange', updateBattery);
+      } catch (e) { console.log("Battery API not supported"); }
+    }
 
-    // 3. Tap Reactions
-    doodle.addEventListener('pointerdown', () => {
-      mouth.classList.add('happy-mouth');
+    // 3. Moods & Petting
+    function resetIdle() {
+      clearTimeout(idleTimer);
+      if (state === "asleep") wakeUp();
+      idleTimer = setTimeout(fallAsleep, 6000); // Sleep after 6 seconds of no touch
+    }
+
+    function fallAsleep() {
+      state = "asleep";
+      face.parentElement.classList.add('asleep');
+      updateTime();
+      spawnParticle("Zzz", "black", -30);
+    }
+
+    function wakeUp() {
+      state = "awake";
+      face.parentElement.classList.remove('asleep');
+      updateTime();
+      spawnParticle("!", "#00ffcc", -40);
+    }
+
+    function getAngry() {
+      face.parentElement.classList.add('angry');
+      spawnParticle("💢", "red", -30);
+      setTimeout(() => face.parentElement.classList.remove('angry'), 2000);
+      tapCount = 0;
+    }
+
+    function spawnParticle(text, color, yOffset) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.innerText = text;
+      p.style.color = color;
+      p.style.left = (Math.random() * 60 + 30) + 'px';
+      p.style.top = yOffset + 'px';
+      doodle.appendChild(p);
+      setTimeout(() => p.remove(), 1000);
+    }
+
+    // Touch Logic
+    let lastX = 0;
+    let strokeDist = 0;
+
+    window.addEventListener('touchstart', (e) => {
+      resetIdle();
+      lastX = e.touches[0].clientX;
       
-      const randomText = phrases[Math.floor(Math.random() * phrases.length)];
-      bubble.textContent = randomText;
-      bubble.classList.add('show');
-
-      setTimeout(() => {
-        mouth.classList.remove('happy-mouth');
-        bubble.classList.remove('show');
-      }, 1400);
+      // Angry Tap Logic
+      tapCount++;
+      clearTimeout(tapTimeout);
+      if (tapCount > 4) getAngry();
+      else tapTimeout = setTimeout(() => tapCount = 0, 1000);
     });
+
+    window.addEventListener('touchmove', (e) => {
+      resetIdle();
+      // Petting Logic
+      let currX = e.touches[0].clientX;
+      strokeDist += Math.abs(currX - lastX);
+      lastX = currX;
+      
+      if (strokeDist > 150) { // If petted enough
+        spawnParticle("❤️", "#ff4d4d", -20);
+        strokeDist = 0;
+      }
+    });
+
+    setInterval(() => { if(state === "asleep") spawnParticle("z", "gray", -30); }, 2000);
+
+    initBattery();
+    updateTime();
+    resetIdle();
   </script>
 </body>
 </html>
