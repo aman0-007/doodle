@@ -26,7 +26,6 @@ public class OverlayService extends Service {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        // Get Screen Width for edge snapping
         DisplayMetrics metrics = new DisplayMetrics();
         windowManager.getDefaultDisplay().getMetrics(metrics);
         screenWidth = metrics.widthPixels;
@@ -37,7 +36,7 @@ public class OverlayService extends Service {
         webSettings.setJavaScriptEnabled(true);
         webView.loadUrl("file:///android_asset/public/index.html");
 
-        int size = 450; // Webview box size
+        int size = 450; 
         params = new WindowManager.LayoutParams(
                 size, size,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -56,6 +55,7 @@ public class OverlayService extends Service {
             private float initialTouchX;
             private float initialTouchY;
             private boolean isDragging = false;
+            private long touchDownTime = 0; // Added timer for drag delay
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -66,30 +66,34 @@ public class OverlayService extends Service {
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
                         isDragging = false;
+                        touchDownTime = System.currentTimeMillis(); // Start timer
                         return false; 
 
                     case MotionEvent.ACTION_MOVE:
                         int deltaX = (int) (event.getRawX() - initialTouchX);
                         int deltaY = (int) (event.getRawY() - initialTouchY);
-                        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                        
+                        // REQUIREMENT: Must hold for 200ms before it's considered a "drag". 
+                        // This prevents dragging from cancelling your "rubbing/petting" mechanic.
+                        if (System.currentTimeMillis() - touchDownTime > 200 && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
                             isDragging = true;
+                            params.x = initialX + deltaX;
+                            params.y = initialY + deltaY;
+                            windowManager.updateViewLayout(webView, params);
                         }
-                        params.x = initialX + deltaX;
-                        params.y = initialY + deltaY;
-                        windowManager.updateViewLayout(webView, params);
                         return false;
 
                     case MotionEvent.ACTION_UP:
                         if (isDragging) {
-                            // Magnetic Edge Snapping Physics
                             int middle = screenWidth / 2;
                             int currentCenter = params.x + (v.getWidth() / 2);
                             
-                            // Hide 40% of the view off-screen
-                            int targetX = (currentCenter < middle) ? -(v.getWidth() / 3) : screenWidth - (v.getWidth() - (v.getWidth() / 3));
+                            // ADJUSTED SNAPPING: Uses a smaller offset (120) so the doodle doesn't hide too far off-screen.
+                            int offset = 120;
+                            int targetX = (currentCenter < middle) ? -offset : screenWidth - (v.getWidth() - offset);
 
                             ValueAnimator animator = ValueAnimator.ofInt(params.x, targetX);
-                            animator.setDuration(250); // 250ms smooth slide
+                            animator.setDuration(250);
                             animator.addUpdateListener(animation -> {
                                 params.x = (Integer) animation.getAnimatedValue();
                                 windowManager.updateViewLayout(webView, params);
