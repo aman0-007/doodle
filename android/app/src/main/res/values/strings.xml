@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mini Doodle</string>
+    <string name="title_activity_main">Mini Doodle</string>
+    <string name="package_name">com.fun.doodle</string>
+    <string name="custom_url_scheme">com.fun.doodle</string>
+</resources>

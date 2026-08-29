@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Doodle Buddy</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: transparent; /* Dark preview background; set to transparent for overlay */
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* Doodle Body & Bobbing Animation */
+    .doodle-container {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      cursor: pointer;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-12px) rotate(2deg); }
+    }
+
+    /* Doodle Head */
+    .face {
+      width: 100%;
+      height: 100%;
+      background: #fff8e7;
+      border: 5px solid #222;
+      border-radius: 50% 50% 45% 45%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .face:active {
+      transform: scale(0.92);
+    }
+
+    /* Eyes */
+    .eyes-container {
+      display: flex;
+      gap: 32px;
+      margin-top: -10px;
+    }
+
+    .eye {
+      width: 24px;
+      height: 32px;
+      background: #222;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      transition: height 0.1s ease;
+    }
+
+    .pupil {
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      transition: transform 0.05s linear;
+    }
+
+    /* Blinking Animation */
+    .blink {
+      height: 3px !important;
+      margin-top: 14px;
+    }
+
+    /* Cheeks */
+    .cheeks {
+      position: absolute;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 18px;
+      top: 55%;
+    }
+
+    .blush {
+      width: 16px;
+      height: 10px;
+      background: #ff7597;
+      border-radius: 50%;
+      opacity: 0.6;
+    }
+
+    /* Mouth */
+    .mouth {
+      width: 20px;
+      height: 10px;
+      border-bottom: 4px solid #222;
+      border-radius: 0 0 20px 20px;
+      margin-top: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .happy-mouth {
+      width: 26px;
+      height: 16px;
+      background: #e63946;
+      border: 3px solid #222;
+      border-radius: 0 0 25px 25px;
+    }
+
+    /* Floating Status Message */
+    .bubble {
+      position: absolute;
+      top: -45px;
+      background: #fff;
+      border: 3px solid #222;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #222;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      pointer-events: none;
+    }
+
+    .bubble.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="doodle-container" id="doodle">
+    <div class="bubble" id="chatBubble">Hey there! ✨</div>
+    <div class="face">
+      <div class="eyes-container">
+        <div class="eye"><div class="pupil" id="pupilL"></div></div>
+        <div class="eye"><div class="pupil" id="pupilR"></div></div>
+      </div>
+      <div class="cheeks">
+        <div class="blush"></div>
+        <div class="blush"></div>
+      </div>
+      <div class="mouth" id="mouth"></div>
+    </div>
+  </div>
+
+  <script>
+    const pupilL = document.getElementById('pupilL');
+    const pupilR = document.getElementById('pupilR');
+    const eyes = document.querySelectorAll('.eye');
+    const mouth = document.getElementById('mouth');
+    const doodle = document.getElementById('doodle');
+    const bubble = document.getElementById('chatBubble');
+
+    const phrases = ["Bloop! 🫧", "Peek-a-boo! 👀", "What ya doing? 📱", "Boop! ✨", "Hehe! 😄"];
+
+    // 1. Automatic Blinking Loop
+    function scheduleBlink() {
+      const nextBlink = Math.random() * 3000 + 2000;
+      setTimeout(() => {
+        eyes.forEach(e => e.classList.add('blink'));
+        setTimeout(() => {
+          eyes.forEach(e => e.classList.remove('blink'));
+          scheduleBlink();
+        }, 150);
+      }, nextBlink);
+    }
+    scheduleBlink();
+
+    // 2. Eyes Follow Touch / Cursor
+    function trackEyes(x, y) {
+      const rect = doodle.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const angle = Math.atan2(y - centerY, x - centerX);
+      const dist = Math.min(6, Math.hypot(x - centerX, y - centerY) / 20);
+
+      const moveX = Math.cos(angle) * dist;
+      const moveY = Math.sin(angle) * dist;
+
+      pupilL.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      pupilR.style.transform = `translate(${moveX}px, ${moveY}px)`;
+    }
+
+    window.addEventListener('mousemove', (e) => trackEyes(e.clientX, e.clientY));
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches[0]) trackEyes(e.touches[0].clientX, e.touches[0].clientY);
+    });
+
+    // 3. Tap Reactions
+    doodle.addEventListener('pointerdown', () => {
+      mouth.classList.add('happy-mouth');
+      
+      const randomText = phrases[Math.floor(Math.random() * phrases.length)];
+      bubble.textContent = randomText;
+      bubble.classList.add('show');
+
+      setTimeout(() => {
+        mouth.classList.remove('happy-mouth');
+        bubble.classList.remove('show');
+      }, 1400);
+    });
+  </script>
+</body>
+</html>
