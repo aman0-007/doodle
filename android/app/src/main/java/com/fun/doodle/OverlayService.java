@@ -20,12 +20,14 @@ public class OverlayService extends Service {
     private WebView webView;
     private WindowManager.LayoutParams params;
     private int screenWidth;
+    private final int BOX_SIZE = 450;
 
     @Override
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
+        // Get exact screen width for perfect edge snapping
         DisplayMetrics metrics = new DisplayMetrics();
         windowManager.getDefaultDisplay().getMetrics(metrics);
         screenWidth = metrics.widthPixels;
@@ -36,9 +38,8 @@ public class OverlayService extends Service {
         webSettings.setJavaScriptEnabled(true);
         webView.loadUrl("file:///android_asset/public/index.html");
 
-        int size = 450; 
         params = new WindowManager.LayoutParams(
-                size, size,
+                BOX_SIZE, BOX_SIZE,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                         : WindowManager.LayoutParams.TYPE_PHONE,
@@ -55,7 +56,8 @@ public class OverlayService extends Service {
             private float initialTouchX;
             private float initialTouchY;
             private boolean isDragging = false;
-            private long touchDownTime = 0; // Added timer for drag delay
+            private boolean isRubbing = false;
+            private long touchDownTime = 0;
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -66,39 +68,59 @@ public class OverlayService extends Service {
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
                         isDragging = false;
-                        touchDownTime = System.currentTimeMillis(); // Start timer
-                        return false; 
+                        isRubbing = false; // Reset interaction state
+                        touchDownTime = System.currentTimeMillis();
+                        return false; // Let the webview see the down event
 
                     case MotionEvent.ACTION_MOVE:
                         int deltaX = (int) (event.getRawX() - initialTouchX);
                         int deltaY = (int) (event.getRawY() - initialTouchY);
                         
-                        // REQUIREMENT: Must hold for 200ms before it's considered a "drag". 
-                        // This prevents dragging from cancelling your "rubbing/petting" mechanic.
-                        if (System.currentTimeMillis() - touchDownTime > 200 && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
-                            isDragging = true;
+                        // 1. Detect if user started rubbing immediately (within 250ms)
+                        if (System.currentTimeMillis() - touchDownTime < 250) {
+                            if (Math.abs(deltaX) > 20 || Math.abs(deltaY) > 20) {
+                                isRubbing = true; // Lock into rubbing mode! Dragging disabled.
+                            }
+                        }
+
+                        // 2. If it's NOT a rub, and they held for > 250ms, unlock dragging
+                        if (!isRubbing && (System.currentTimeMillis() - touchDownTime >= 250)) {
+                            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                                isDragging = true;
+                            }
+                        }
+
+                        // 3. Move the window if dragging is unlocked
+                        if (isDragging) {
                             params.x = initialX + deltaX;
                             params.y = initialY + deltaY;
                             windowManager.updateViewLayout(webView, params);
+                            return true; // Consume event so JS doesn't count it as a pet/rub
                         }
                         return false;
 
                     case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
                         if (isDragging) {
+                            // PERFECT EDGE SNAPPING MATH
+                            // Box = 450px. Doodle = 140px. Empty space = 155px.
+                            // To hide exactly 40px of doodle on the edge:
+                            int leftSnap = -195; 
+                            int rightSnap = screenWidth - (BOX_SIZE + leftSnap);
+
                             int middle = screenWidth / 2;
-                            int currentCenter = params.x + (v.getWidth() / 2);
+                            int currentCenter = params.x + (BOX_SIZE / 2);
                             
-                            // ADJUSTED SNAPPING: Uses a smaller offset (120) so the doodle doesn't hide too far off-screen.
-                            int offset = 120;
-                            int targetX = (currentCenter < middle) ? -offset : screenWidth - (v.getWidth() - offset);
+                            int targetX = (currentCenter < middle) ? leftSnap : rightSnap;
 
                             ValueAnimator animator = ValueAnimator.ofInt(params.x, targetX);
-                            animator.setDuration(250);
+                            animator.setDuration(300); // 300ms smooth glide
                             animator.addUpdateListener(animation -> {
                                 params.x = (Integer) animation.getAnimatedValue();
                                 windowManager.updateViewLayout(webView, params);
                             });
                             animator.start();
+                            return true; // Consume UP event so it doesn't trigger a JS click
                         }
                         return false;
                 }

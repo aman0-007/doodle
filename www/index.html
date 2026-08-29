@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Doodle Buddy</title>
   <style>
-    /* Added -webkit-tap-highlight-color to remove the blue tap flash */
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; font-family: sans-serif; }
 
@@ -20,14 +19,24 @@
     .pupil { width: 8px; height: 8px; background: #fff; border-radius: 50%; position: absolute; top: 4px; left: 4px; transition: transform 0.05s linear; }
     .mouth { width: 16px; height: 8px; border-bottom: 4px solid #222; border-radius: 0 0 20px 20px; margin-top: 10px; transition: all 0.2s; }
 
+    /* Angry State */
     .angry .face { background: #ff4d4d; }
     .angry .eye { height: 10px; border-radius: 0; transform: rotate(15deg); }
     .angry .eyes-container .eye:first-child { transform: rotate(-15deg); }
     .angry .mouth { border-bottom: none; border-top: 4px solid #222; border-radius: 20px 20px 0 0; }
 
+    /* Asleep State */
     .asleep .eye { height: 4px; margin-top: 12px; }
     .asleep .pupil { display: none; }
     .asleep .mouth { width: 10px; height: 10px; border: 4px solid #222; border-radius: 50%; }
+
+    /* Dizzy State (New!) */
+    .dizzy .face { background: #bdfcc9; } 
+    .dizzy .eyes-container { animation: spin 0.8s linear infinite; }
+    .dizzy .eye { height: 24px; background: transparent; border: 4px solid #222; }
+    .dizzy .pupil { display: none; }
+    .dizzy .mouth { width: 16px; height: 16px; border: 4px solid #222; border-radius: 50%; border-bottom: none; transform: rotate(180deg); margin-top: 15px;}
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
     .charging .face { box-shadow: 0 0 30px #00ffcc, inset 0 0 15px #00ffcc; }
     .tired .face { background: #dcdcdc; }
@@ -67,7 +76,7 @@
     function updateTime() {
       const hour = new Date().getHours();
       const isNight = hour >= 20 || hour < 6;
-      document.getElementById('nightcap').style.opacity = isNight && state === "asleep" ? "1" : "0";
+      document.getElementById('nightcap').style.opacity = (isNight && state === "asleep") ? "1" : "0";
       document.getElementById('sunglasses').style.opacity = (!isNight && state === "awake") ? "1" : "0";
     }
 
@@ -87,12 +96,14 @@
     }
 
     function resetIdle() {
+      if (state === "dizzy") return;
       clearTimeout(idleTimer);
       if (state === "asleep") wakeUp();
       idleTimer = setTimeout(fallAsleep, 6000); 
     }
 
     function fallAsleep() {
+      if (state === "dizzy") return;
       state = "asleep";
       face.parentElement.classList.add('asleep');
       updateTime();
@@ -107,10 +118,30 @@
     }
 
     function getAngry() {
+      if (state === "dizzy") return;
       face.parentElement.classList.add('angry');
       spawnParticle("💢", "red", -30);
+      
+      // HAPTIC SHARP BUZZ
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+
       setTimeout(() => face.parentElement.classList.remove('angry'), 2000);
       tapCount = 0;
+    }
+
+    function getDizzy() {
+      state = "dizzy";
+      face.parentElement.classList.add('dizzy');
+      spawnParticle("😵‍💫", "green", -30);
+      
+      // HAPTIC WOBBLY BUZZ
+      if (navigator.vibrate) navigator.vibrate([50, 50, 50, 50, 50, 50]);
+
+      setTimeout(() => {
+        face.parentElement.classList.remove('dizzy');
+        state = "awake";
+        resetIdle();
+      }, 4000); // Stays dizzy for 4 seconds
     }
 
     function spawnParticle(text, color, yOffset) {
@@ -124,12 +155,13 @@
       setTimeout(() => p.remove(), 1000);
     }
 
-    let lastX = 0;
+    // --- TOUCH LOGIC ---
+    let lastTouchX = 0;
     let strokeDist = 0;
 
     window.addEventListener('touchstart', (e) => {
       resetIdle();
-      lastX = e.touches[0].clientX;
+      lastTouchX = e.touches[0].clientX;
       
       tapCount++;
       clearTimeout(tapTimeout);
@@ -138,16 +170,51 @@
     });
 
     window.addEventListener('touchmove', (e) => {
+      if (state === "dizzy") return;
       resetIdle();
       let currX = e.touches[0].clientX;
-      strokeDist += Math.abs(currX - lastX);
-      lastX = currX;
+      strokeDist += Math.abs(currX - lastTouchX);
+      lastTouchX = currX;
       
-      // Reduced required distance to make petting trigger much easier
       if (strokeDist > 80) { 
         spawnParticle("❤️", "#ff4d4d", -20);
+        // HAPTIC GENTLE PURR FOR PETTING
+        if (navigator.vibrate) navigator.vibrate(30); 
         strokeDist = 0;
       }
+    });
+
+    // --- ACCELEROMETER SHAKE LOGIC ---
+    let lastAccX, lastAccY, lastAccZ;
+    let shakeCount = 0;
+    let shakeTimeout;
+
+    window.addEventListener('devicemotion', (e) => {
+      if (state === "dizzy") return;
+
+      let acc = e.accelerationIncludingGravity;
+      if (!acc) return;
+
+      if (lastAccX !== undefined) {
+        let deltaX = Math.abs(acc.x - lastAccX);
+        let deltaY = Math.abs(acc.y - lastAccY);
+        let deltaZ = Math.abs(acc.z - lastAccZ);
+
+        // If the phone moves sharply in any direction
+        if (deltaX + deltaY + deltaZ > 25) { 
+          shakeCount++;
+          clearTimeout(shakeTimeout);
+          shakeTimeout = setTimeout(() => { shakeCount = 0; }, 800); // Reset if they stop shaking
+
+          if (shakeCount > 4) { // Requires multiple shakes quickly
+            getDizzy();
+            shakeCount = 0;
+          }
+        }
+      }
+      lastAccX = acc.x;
+      lastAccY = acc.y;
+      lastAccZ = acc.z;
     });
 
     setInterval(() => { if(state === "asleep") spawnParticle("z", "gray", -30); }, 2000);
