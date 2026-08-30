@@ -22,8 +22,8 @@ public class OverlayService extends Service {
     private int screenWidth;
     
     // DP variables for perfect scaling on ANY phone screen
-    private final float WEB_BOX_DP = 260f; 
-    private final float DOODLE_DP = 140f;
+    private final float DOODLE_DP = 140f; 
+    private final float WEB_BOX_DP = DOODLE_DP + 36f;
 
     @Override
     public void onCreate() {
