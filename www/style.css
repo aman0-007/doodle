@@ -1,0 +1,630 @@
+/* =========================================================
+   PIXEL DOODLE V2.1
+   VISUAL ENGINE
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+
+    user-select: none;
+    -webkit-user-select: none;
+
+    touch-action: none;
+
+    -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: transparent;
+}
+
+
+/* =========================================================
+   DOODLE
+   ========================================================= */
+
+#doodle {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    --glow: #19eaff;
+
+    animation:
+        float 3.5s ease-in-out infinite;
+
+    will-change: transform;
+}
+
+
+/* =========================================================
+   EYES
+   ========================================================= */
+
+.eyes {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 28px;
+
+    will-change: transform;
+}
+
+
+/* =========================================================
+   NORMAL EYE
+   ========================================================= */
+
+.eye {
+    position: relative;
+
+    width: 34px;
+    height: 42px;
+
+    flex-shrink: 0;
+
+    background: var(--glow);
+
+    border-radius: 9px;
+
+    box-shadow:
+        0 0 4px var(--glow),
+        0 0 12px var(--glow),
+        0 0 24px rgba(25, 234, 255, 0.55);
+
+    transition:
+        width 0.16s ease,
+        height 0.16s ease,
+        border-radius 0.16s ease,
+        transform 0.16s ease,
+        opacity 0.16s ease,
+        background 0.16s ease,
+        box-shadow 0.16s ease;
+
+    will-change:
+        width,
+        height,
+        transform,
+        border-radius;
+}
+
+
+/* =========================================================
+   FLOAT
+   ========================================================= */
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+
+/* =========================================================
+   TAP
+   ========================================================= */
+
+.tap {
+    animation: squish 180ms ease-out;
+}
+
+@keyframes squish {
+
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.85, 0.75);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+
+/* =========================================================
+   BLINK
+   ========================================================= */
+
+.blink .eye {
+    height: 5px;
+
+    border-radius: 4px;
+}
+
+
+/* =========================================================
+   DIZZY
+   ========================================================= */
+
+/*
+   The eyes become glowing spiral-like rings.
+
+   We don't rotate the whole face anymore.
+   Each eye gets its own wobble.
+*/
+
+.dizzy .eyes {
+    gap: 28px;
+}
+
+.dizzy .eye {
+    width: 38px;
+    height: 38px;
+
+    background: transparent;
+
+    border: 6px solid var(--glow);
+
+    border-radius: 50%;
+
+    box-shadow:
+        0 0 4px var(--glow),
+        0 0 12px var(--glow),
+        0 0 25px rgba(25, 234, 255, 0.6);
+
+    animation:
+        dizzyEye 750ms ease-in-out infinite alternate;
+}
+
+.dizzy .eye:last-child {
+    animation-delay: 120ms;
+}
+
+
+/*
+   Inner spiral-like arc.
+*/
+
+.dizzy .eye::after {
+    content: "";
+
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 14px;
+    height: 14px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border: 4px solid var(--glow);
+
+    border-left-color: transparent;
+
+    border-radius: 50%;
+
+    box-shadow:
+        0 0 6px var(--glow);
+
+    animation:
+        dizzySpiral 650ms linear infinite;
+}
+
+
+@keyframes dizzyEye {
+
+    0% {
+        transform:
+            rotate(-8deg)
+            scale(0.92);
+    }
+
+    100% {
+        transform:
+            rotate(8deg)
+            scale(1.08);
+    }
+}
+
+
+@keyframes dizzySpiral {
+
+    from {
+        transform:
+            translate(-50%, -50%)
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            translate(-50%, -50%)
+            rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   EXCITED
+   ========================================================= */
+
+.excited .eye {
+    animation:
+        excitedPulse 500ms ease-in-out infinite alternate;
+}
+
+.excited .eye:last-child {
+    animation-delay: 80ms;
+}
+
+@keyframes excitedPulse {
+
+    from {
+        transform: translateY(0) scale(1);
+    }
+
+    to {
+        transform: translateY(-3px) scale(1.06);
+    }
+}
+
+
+/* =========================================================
+   CURIOUS
+   ========================================================= */
+
+.curious .eyes {
+    animation:
+        curiousMove 1.4s ease-in-out infinite;
+}
+
+@keyframes curiousMove {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    45% {
+        transform: translateX(3px);
+    }
+
+    70% {
+        transform: translateX(-2px);
+    }
+}
+
+
+/* =========================================================
+   CONFUSED
+   ========================================================= */
+
+.confused .eyes {
+    animation:
+        confusedWobble 700ms ease-in-out infinite alternate;
+}
+
+@keyframes confusedWobble {
+
+    from {
+        transform: rotate(-2deg);
+    }
+
+    to {
+        transform: rotate(2deg);
+    }
+}
+
+
+/* =========================================================
+   HAPPY
+   ========================================================= */
+
+.happy .eye {
+    box-shadow:
+        0 0 4px var(--glow),
+        0 0 12px var(--glow),
+        0 0 24px rgba(25, 234, 255, 0.55);
+}
+
+
+/* =========================================================
+   LAUGHING
+   ========================================================= */
+
+.laughing .eyes {
+    animation:
+        laughBounce 280ms ease-in-out infinite alternate;
+}
+
+@keyframes laughBounce {
+
+    from {
+        transform: translateY(1px);
+    }
+
+    to {
+        transform: translateY(-3px);
+    }
+}
+
+
+/* =========================================================
+   ANGRY
+   ========================================================= */
+
+.angry .eye {
+    box-shadow:
+        0 0 5px var(--glow),
+        0 0 14px var(--glow),
+        0 0 27px rgba(25, 234, 255, 0.6);
+}
+
+.angry .eyes {
+    animation:
+        angryShake 160ms ease-in-out infinite alternate;
+}
+
+@keyframes angryShake {
+
+    from {
+        transform: translateX(-1px);
+    }
+
+    to {
+        transform: translateX(1px);
+    }
+}
+
+
+/* =========================================================
+   SAD
+   ========================================================= */
+
+.sad .eyes {
+    animation:
+        sadFloat 1.8s ease-in-out infinite;
+}
+
+@keyframes sadFloat {
+
+    0%,
+    100% {
+        transform: translateY(1px);
+    }
+
+    50% {
+        transform: translateY(4px);
+    }
+}
+
+
+/* =========================================================
+   THINKING
+   ========================================================= */
+
+.thinking .eyes {
+    animation:
+        thinkingMove 1.5s ease-in-out infinite;
+}
+
+@keyframes thinkingMove {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    35% {
+        transform: translateX(4px);
+    }
+
+    70% {
+        transform: translateX(2px);
+    }
+}
+
+
+/* =========================================================
+   LISTENING
+   ========================================================= */
+
+.listening .eyes {
+    animation:
+        listeningPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes listeningPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.035);
+    }
+}
+
+
+/* =========================================================
+   SPEAKING
+   ========================================================= */
+
+.speaking .eye {
+    animation:
+        speakingPulse 260ms ease-in-out infinite alternate;
+}
+
+.speaking .eye:last-child {
+    animation-delay: 100ms;
+}
+
+@keyframes speakingPulse {
+
+    from {
+        transform: scaleY(1);
+    }
+
+    to {
+        transform: scaleY(0.82);
+    }
+}
+
+
+/* =========================================================
+   ATTENTION
+   ========================================================= */
+
+.attention .eyes {
+    animation:
+        attentionBounce 650ms ease-in-out infinite;
+}
+
+@keyframes attentionBounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.loading .eye {
+    animation:
+        loadingPulse 700ms ease-in-out infinite alternate;
+}
+
+.loading .eye:last-child {
+    animation-delay: 180ms;
+}
+
+@keyframes loadingPulse {
+
+    from {
+        transform: scaleY(0.72);
+        opacity: 0.65;
+    }
+
+    to {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+
+/* =========================================================
+   SLEEP
+   ========================================================= */
+
+.sleep .eyes {
+    animation:
+        sleepingFloat 2.4s ease-in-out infinite;
+}
+
+@keyframes sleepingFloat {
+
+    0%,
+    100% {
+        transform: translateY(1px);
+    }
+
+    50% {
+        transform: translateY(3px);
+    }
+}
+
+
+/* =========================================================
+   CHARGING
+   ========================================================= */
+
+.charging .eye {
+    box-shadow:
+        0 0 5px var(--glow),
+        0 0 16px var(--glow),
+        0 0 34px rgba(25, 234, 255, 0.7);
+}
+
+
+/* =========================================================
+   LOW BATTERY
+   ========================================================= */
+
+.tired .eye {
+    opacity: 0.55;
+}
+
+
+/* =========================================================
+   ATTENTION PULSE
+   ========================================================= */
+
+.attention .eye {
+    animation:
+        attentionEyePulse 900ms ease-in-out infinite;
+}
+
+@keyframes attentionEyePulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.72;
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    #doodle {
+        animation: none;
+    }
+
+    .dizzy .eye,
+    .dizzy .eye::after,
+    .excited .eye,
+    .curious .eyes,
+    .confused .eyes,
+    .laughing .eyes,
+    .angry .eyes,
+    .sad .eyes,
+    .thinking .eyes,
+    .listening .eyes,
+    .speaking .eye,
+    .attention .eyes,
+    .attention .eye,
+    .loading .eye,
+    .sleep .eyes {
+        animation: none;
+    }
+}
