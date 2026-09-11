@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Mini Doodle</title>
+    <meta name="description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, and taps.">
+    <meta property="og:title" content="Mini Doodle">
+    <meta property="og:description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, and taps.">
+    <link rel="stylesheet" href="style.css?v=7.0">
+</head>
+
+<body>
+    <!-- Top HUD Controls (Sound, Shake, Battery) -->
+    <header class="hud-header" id="hudHeader">
+        <div class="hud-left">
+            <button id="soundToggle" class="hud-btn" title="Toggle 8-bit Sound FX">
+                <span id="soundIcon">🔊</span>
+                <span id="soundLabel">Sound ON</span>
+            </button>
+        </div>
+
+        <div class="hud-center">
+            <button id="shakeBtn" class="hud-btn shake-btn" title="Trigger dizzy shake effect">
+                <span>📳</span>
+                <span>Shake Doodle</span>
+            </button>
+        </div>
+
+        <div class="hud-right">
+            <div id="batteryWidget" class="battery-widget" title="Click to cycle battery modes (Auto / Charging / Normal / Low)">
+                <div class="battery-icon-wrap">
+                    <div id="batteryFill" class="battery-fill"></div>
+                </div>
+                <span id="batteryPercent">85%</span>
+                <span id="batteryStatus" class="battery-status-tag">⚡</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Doodle Stage (Focused strictly on clean expressive eyes) -->
+    <main id="doodle-stage">
+        <div id="doodle">
+            <!-- Floating Sleeping Zed Structures (Zero Emoji - Custom Geometric Zeds) -->
+            <div id="sleep-orbit" class="sleep-orbit" aria-hidden="true">
+                <div class="zed-structure z1">
+                    <svg viewBox="0 0 24 24" class="zed-svg" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 5h14L5 19h14" />
+                    </svg>
+                </div>
+                <div class="zed-structure z2">
+                    <svg viewBox="0 0 24 24" class="zed-svg" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 5h14L5 19h14" />
+                    </svg>
+                </div>
+                <div class="zed-structure z3">
+                    <svg viewBox="0 0 24 24" class="zed-svg" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 5h14L5 19h14" />
+                    </svg>
+                </div>
+                <div class="zed-structure z4">
+                    <svg viewBox="0 0 24 24" class="zed-svg" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 5h14L5 19h14" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Eye Pair -->
+            <div class="eyes" id="eyesContainer">
+                <!-- High-Tech Space Specs (Custom Cyber Spectacles - Zero Emoji) -->
+                <div id="specs-rig" class="specs-rig">
+                    <div class="specs-arm left"></div>
+                    <div class="specs-frame left">
+                        <div class="specs-lens-shine"></div>
+                        <div class="specs-glint"></div>
+                    </div>
+                    <div class="specs-bridge"></div>
+                    <div class="specs-frame right">
+                        <div class="specs-lens-shine"></div>
+                        <div class="specs-glint"></div>
+                    </div>
+                    <div class="specs-arm right"></div>
+                </div>
+
+                <div class="eye" id="eyeLeft">
+                    <div class="eye-spiral"></div>
+                </div>
+                <div class="eye" id="eyeRight">
+                    <div class="eye-spiral"></div>
+                </div>
+            </div>
+
+            <!-- Retro 8-Bit Boombox Rig -->
+            <div id="boombox-rig" class="boombox-rig">
+                <div class="boombox-body">
+                    <div class="boombox-handle"></div>
+                    <div class="boombox-speaker left">
+                        <div class="speaker-cone"></div>
+                    </div>
+                    <div class="boombox-deck">
+                        <div class="deck-window">
+                            <div class="tape-reel left"></div>
+                            <div class="tape-reel right"></div>
+                        </div>
+                        <div class="boombox-eq">
+                            <span class="eq-col eq-1"></span>
+                            <span class="eq-col eq-2"></span>
+                            <span class="eq-col eq-3"></span>
+                            <span class="eq-col eq-4"></span>
+                            <span class="eq-col eq-5"></span>
+                        </div>
+                    </div>
+                    <div class="boombox-speaker right">
+                        <div class="speaker-cone"></div>
+                    </div>
+                </div>
+
+                <!-- Custom Environment Floating Beat Atmosphere (Excluding sparking circle as requested) -->
+                <div class="boombox-ambience">
+                    <span class="beat-spark bs1">✦</span>
+                    <span class="beat-particle bp1"></span>
+                    <span class="beat-bar bb1"></span>
+                    <span class="beat-spark bs2">✦</span>
+                    <span class="beat-particle bp2"></span>
+                    <span class="beat-bar bb2"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Interactive Bottom Dock (Mood & Expression Palette) -->
+    <div class="dock-container" id="dockContainer">
+        <button id="dockToggle" class="dock-toggle">
+            <span>🎭</span>
+            <span id="dockToggleLabel">Expressions (19)</span>
+        </button>
+        <div class="mood-dock" id="moodDock">
+            <!-- Populated dynamically via JS with all moods -->
+        </div>
+    </div>
+
+    <!-- Scripts in proper dependency order -->
+    <script src="sound.js?v=7.0"></script>
+    <script src="expressions.js?v=7.0"></script>
+    <script src="app.js?v=7.0"></script>
+</body>
+
+</html>

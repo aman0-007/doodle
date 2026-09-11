@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Git Pre-Push Hook: Automatically generate Android APK on `git push`
+# ==============================================================================
+
+echo ""
+echo "🚀 [Git Push Hook] Triggered by git push!"
+echo "📦 Building Android APK before pushing commits..."
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
+
+# Run the APK build script
+if [ -f "$REPO_ROOT/scripts/build-apk.sh" ]; then
+    bash "$REPO_ROOT/scripts/build-apk.sh"
+else
+    echo "⚠️  Build script not found at $REPO_ROOT/scripts/build-apk.sh"
+fi
+
+echo "✅ [Git Push Hook] APK generation complete. Proceeding with git push..."
+echo ""
+exit 0

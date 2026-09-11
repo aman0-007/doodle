@@ -1,20 +1,18 @@
 {
   "name": "mini-doodle",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Interactive animated pixel doodle pet with expressive glowing eyes",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node server.js",
+    "build": "mkdir -p dist && cp index.html style.css app.js expressions.js sound.js dist/",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/core": "^8.5.0"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^8.5.0"
+    "express": "^4.21.2"
   }
 }

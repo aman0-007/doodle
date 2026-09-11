@@ -1,0 +1,8 @@
+{
+  "name": "Mini Doodle",
+  "description": "Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, and taps",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
