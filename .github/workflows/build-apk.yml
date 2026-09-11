@@ -6,6 +6,7 @@ on:
       - '**'
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,33 +26,22 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle Packages
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Grant Execute Permission to Gradle Wrapper
-        run: |
-          cd android
-          if [ ! -f "gradlew" ]; then
-            gradle wrapper
-          fi
-          chmod +x gradlew
+          gradle-version: '8.5'
 
       - name: Build Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace --no-daemon
 
-      - name: Locate & Rename APK
+      - name: Locate & Collect APK
         run: |
           mkdir -p build-artifacts
-          find android/app/build/outputs/apk/ -name "*.apk" -exec cp {} build-artifacts/floating-doodle-eyes-debug.apk \;
+          find android/app/build/outputs/apk/ -type f -name "*.apk" -exec cp {} build-artifacts/floating-doodle-eyes-debug.apk \;
+          echo "Listing build-artifacts directory:"
+          ls -la build-artifacts/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
