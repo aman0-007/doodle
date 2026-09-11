@@ -30,17 +30,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.5'
+          cache-disabled: true
 
       - name: Build Debug APK
         run: |
           cd android
-          gradle assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace --info --no-daemon
 
       - name: Locate & Collect APK
         run: |
           mkdir -p build-artifacts
           find android/app/build/outputs/apk/ -type f -name "*.apk" -exec cp {} build-artifacts/floating-doodle-eyes-debug.apk \;
-          echo "Listing build-artifacts directory:"
+          echo "APK Artifacts located:"
           ls -la build-artifacts/
 
       - name: Upload APK Artifact

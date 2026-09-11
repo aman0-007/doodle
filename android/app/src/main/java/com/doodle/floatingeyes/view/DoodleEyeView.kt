@@ -8,7 +8,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.view.View
-import androidx.compose.ui.graphics.toArgb
 import com.doodle.floatingeyes.model.MoodType
 import kotlin.random.Random
 
@@ -77,15 +76,15 @@ class DoodleEyeView @JvmOverloads constructor(
         val cy = height / 2f
         val gap = 16f * density
 
-        val colorInt = currentMood.glowColor.toArgb()
+        val colorInt = currentMood.glowColor
         eyePaint.color = colorInt
         glowPaint.color = colorInt
 
-        val lWidth = (if (isBlinking) currentMood.leftWidthDp else currentMood.leftWidthDp) * density
+        val lWidth = currentMood.leftWidthDp * density
         val lHeight = (if (isBlinking) 4f else currentMood.leftHeightDp) * density
         val lRadius = (if (isBlinking) 2f else currentMood.leftRadiusDp) * density
 
-        val rWidth = (if (isBlinking) currentMood.rightWidthDp else currentMood.rightWidthDp) * density
+        val rWidth = currentMood.rightWidthDp * density
         val rHeight = (if (isBlinking) 4f else currentMood.rightHeightDp) * density
         val rRadius = (if (isBlinking) 2f else currentMood.rightRadiusDp) * density
 

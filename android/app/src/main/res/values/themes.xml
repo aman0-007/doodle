@@ -1,6 +1,7 @@
 <resources>
-    <style name="Theme.FloatingDoodleEyes" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.FloatingDoodleEyes" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">#0F172A</item>
         <item name="android:windowBackground">#0F172A</item>
+        <item name="colorPrimary">#19EAFF</item>
     </style>
 </resources>
