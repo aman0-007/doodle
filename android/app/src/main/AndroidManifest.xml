@@ -12,15 +12,32 @@
     <!-- Optional vibration feedback on taps and shakes -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Queries to launch external apps -->
+    <!-- Permission to query and discover all installed launcher applications on Android 11+ -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Queries to discover and launch external launcher applications & common intent filters -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
         </intent>
         <package android:name="com.spotify.music" />
         <package android:name="com.whatsapp" />
         <package android:name="com.google.android.apps.maps" />
         <package android:name="com.google.android.youtube" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.android.chrome" />
+        <package android:name="com.google.android.calculator" />
     </queries>
 
     <application

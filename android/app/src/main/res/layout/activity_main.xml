@@ -76,7 +76,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Supported Integrations:"
+                    android:text="Supported Commands & Powers:"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -86,7 +86,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:lineSpacingExtra="3dp"
-                    android:text="• Voice: Say 'sleep', 'party', 'hello', 'love'\n• Apps: Say 'open camera', 'open spotify', 'open whatsapp'\n• Gestures: Tap to react, drag to move, long-press to sleep"
+                    android:text="• Open Any App: Say 'open Instagram', 'open Spotify', 'launch Netflix', 'open Calculator', 'open Uber', etc.\n• Voice Emotions: Say 'sleep', 'party', 'hello', 'love', 'angry', 'shocked'\n• Gestures: Tap to react, drag to move across screen, long-press to sleep"
                     android:textColor="#94A3B8"
                     android:textSize="13sp" />
 

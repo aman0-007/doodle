@@ -1076,3 +1076,222 @@ html, body {
         animation: none !important;
     }
 }
+
+/* =========================================================
+   POWERS MODAL & VOICE EMULATOR STYLES
+   ========================================================= */
+
+.powers-btn {
+    border-color: rgba(25, 234, 255, 0.4);
+    background: rgba(25, 234, 255, 0.12);
+}
+
+.powers-btn:hover {
+    background: rgba(25, 234, 255, 0.25);
+    border-color: #19eaff;
+}
+
+.powers-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 11, 18, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.powers-modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.powers-modal-card {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 640px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+}
+
+.powers-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.powers-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #19eaff;
+    background: rgba(25, 234, 255, 0.12);
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+}
+
+.powers-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.powers-close-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.powers-close-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.powers-modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.powers-feature-banner {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    background: rgba(25, 234, 255, 0.07);
+    border: 1px solid rgba(25, 234, 255, 0.25);
+    border-radius: 12px;
+}
+
+.banner-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.banner-text {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.banner-text strong {
+    color: #19eaff;
+}
+
+.powers-subhead {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.powers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.power-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.power-intent {
+    font-size: 12px;
+    font-weight: 600;
+    color: #38ef7d;
+}
+
+.power-card code {
+    font-size: 12px;
+    color: #e2e8f0;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border-left: 2px solid #19eaff;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.test-voice-bar {
+    display: flex;
+    gap: 8px;
+}
+
+#voiceTestInput {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+}
+
+#voiceTestInput:focus {
+    border-color: #19eaff;
+}
+
+.test-btn {
+    background: #19eaff;
+    border: none;
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 0 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.test-btn:hover {
+    background: #50f2ff;
+}
+
+.voice-output-tag {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #94a3b8;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border-left: 3px solid #38ef7d;
+}
+

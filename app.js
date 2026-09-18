@@ -671,6 +671,102 @@ dockToggle.addEventListener("click", (e) => {
 });
 
 /* =========================================================
+   POWERS MODAL & VOICE EMULATOR
+   ========================================================= */
+
+const powersBtn = document.getElementById("powersBtn");
+const powersModal = document.getElementById("powersModal");
+const closePowersModal = document.getElementById("closePowersModal");
+const voiceTestInput = document.getElementById("voiceTestInput");
+const testVoiceBtn = document.getElementById("testVoiceBtn");
+const voiceTestOutput = document.getElementById("voiceTestOutput");
+
+if (powersBtn && powersModal) {
+    powersBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        SoundFX.init();
+        powersModal.classList.add("open");
+        powersModal.setAttribute("aria-hidden", "false");
+    });
+}
+
+if (closePowersModal && powersModal) {
+    closePowersModal.addEventListener("click", () => {
+        powersModal.classList.remove("open");
+        powersModal.setAttribute("aria-hidden", "true");
+    });
+
+    powersModal.addEventListener("click", (e) => {
+        if (e.target === powersModal) {
+            powersModal.classList.remove("open");
+            powersModal.setAttribute("aria-hidden", "true");
+        }
+    });
+}
+
+function simulateVoiceCommand(phrase) {
+    const clean = (phrase || "").toLowerCase().trim();
+    if (!clean) return;
+
+    SoundFX.init();
+
+    // App launches
+    const openPrefixes = ["open ", "launch ", "start ", "go to "];
+    for (const prefix of openPrefixes) {
+        if (clean.startsWith(prefix)) {
+            const target = clean.substring(prefix.length).trim();
+            const formatted = target.charAt(0).toUpperCase() + target.slice(1);
+            playExpression("excited");
+            SoundFX.play("jump");
+            if (voiceTestOutput) {
+                voiceTestOutput.innerHTML = `🚀 <strong>Matched Intent:</strong> App Launch &rarr; <span style="color:#19eaff">Opening ${formatted}</span>`;
+            }
+            showMoodBubble(`Opening ${formatted}...`);
+            return;
+        }
+    }
+
+    // Direct phrases
+    if (clean.includes("sleep") || clean.includes("night") || clean.includes("tired")) {
+        playExpression("sleep");
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💤 <strong>Matched Intent:</strong> Mood &rarr; <span style="color:#6ee7b7">Sleeping Eyes</span>`;
+    } else if (clean.includes("party") || clean.includes("music") || clean.includes("dance")) {
+        playExpression("boombox");
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `📻 <strong>Matched Intent:</strong> Boombox &rarr; <span style="color:#f43f5e">Audio Beats Activated</span>`;
+    } else if (clean.includes("hello") || clean.includes("wake") || clean.includes("happy")) {
+        playExpression("happy");
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `✨ <strong>Matched Intent:</strong> Greeting &rarr; <span style="color:#38ef7d">Happy Eyes</span>`;
+    } else if (clean.includes("love") || clean.includes("cute")) {
+        playExpression("love");
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💖 <strong>Matched Intent:</strong> Affection &rarr; <span style="color:#ff4d8d">Heart Pupils</span>`;
+    } else if (clean.includes("shock") || clean.includes("omg") || clean.includes("wow")) {
+        playExpression("shocked");
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `⚡ <strong>Matched Intent:</strong> Surprise &rarr; <span style="color:#fbbf24">Shocked Dialation</span>`;
+    } else {
+        // Assume direct app name
+        const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+        playExpression("excited");
+        SoundFX.play("jump");
+        if (voiceTestOutput) {
+            voiceTestOutput.innerHTML = `🚀 <strong>Fuzzy Match:</strong> App Launch &rarr; <span style="color:#19eaff">Opening ${formatted}</span>`;
+        }
+        showMoodBubble(`Opening ${formatted}...`);
+    }
+}
+
+if (testVoiceBtn && voiceTestInput) {
+    testVoiceBtn.addEventListener("click", () => {
+        simulateVoiceCommand(voiceTestInput.value);
+    });
+
+    voiceTestInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            simulateVoiceCommand(voiceTestInput.value);
+        }
+    });
+}
+
+/* =========================================================
    STARTUP INITIALIZATION
    ========================================================= */
 

@@ -6,17 +6,18 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import com.doodle.floatingeyes.action.EyeAppLauncher
+import com.doodle.floatingeyes.action.ActionResult
+import com.doodle.floatingeyes.action.EyeActionRouter
 import com.doodle.floatingeyes.model.MoodType
 import java.util.Locale
 
 /**
- * Listens to voice speech in real-time, changing eye expressions
- * and triggering app launches based on what the user says.
+ * Real-time Speech Recognizer integrating with EyeActionRouter
+ * to drive universal app launching, smart actions, and eye moods.
  */
 class EyeVoiceListener(
     private val context: Context,
-    private val appLauncher: EyeAppLauncher,
+    val actionRouter: EyeActionRouter,
     private val onExpressionChange: (MoodType) -> Unit
 ) : RecognitionListener {
 
@@ -52,10 +53,9 @@ class EyeVoiceListener(
     override fun onResults(results: Bundle?) {
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
-            val spokenText = matches[0].lowercase(Locale.ROOT)
-            processSpokenText(spokenText)
+            val spokenText = matches[0]
+            handleCommand(spokenText)
         }
-        // Auto-restart listening loop
         if (isListening) {
             startListening()
         }
@@ -64,72 +64,48 @@ class EyeVoiceListener(
     override fun onPartialResults(partialResults: Bundle?) {
         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
-            val partial = matches[0].lowercase(Locale.ROOT)
-            processSpokenText(partial)
+            val partial = matches[0]
+            // We can check high-priority commands on partial speech
+            handleCommand(partial)
         }
     }
 
-    private fun processSpokenText(text: String) {
-        when {
-            // Expression triggers
-            text.contains("sleep") || text.contains("goodnight") || text.contains("tired") -> {
-                onExpressionChange(MoodType.SLEEP)
+    private fun handleCommand(text: String) {
+        val result = actionRouter.dispatchVoiceCommand(text)
+        when (result) {
+            is ActionResult.Success -> {
+                onExpressionChange(result.targetMood)
             }
-            text.contains("wake up") || text.contains("hello") || text.contains("hey") -> {
-                onExpressionChange(MoodType.HAPPY)
+            is ActionResult.NotFound -> {
+                onExpressionChange(result.suggestedMood)
             }
-            text.contains("love") || text.contains("cute") || text.contains("sweet") -> {
-                onExpressionChange(MoodType.LOVE)
+            is ActionResult.HandledMood -> {
+                onExpressionChange(result.mood)
             }
-            text.contains("angry") || text.contains("mad") || text.contains("stop") -> {
-                onExpressionChange(MoodType.ANGRY)
-            }
-            text.contains("party") || text.contains("dance") || text.contains("music") -> {
-                onExpressionChange(MoodType.BOOMBOX)
-            }
-            text.contains("wow") || text.contains("omg") || text.contains("shock") -> {
-                onExpressionChange(MoodType.SHOCKED)
-            }
-            // App launch triggers
-            text.contains("open camera") || text.contains("take photo") -> {
-                onExpressionChange(MoodType.EXCITED)
-                appLauncher.launchCamera()
-            }
-            text.contains("open spotify") || text.contains("play song") -> {
-                onExpressionChange(MoodType.BOOMBOX)
-                appLauncher.launchSpotify()
-            }
-            text.contains("open whatsapp") || text.contains("chat") -> {
-                onExpressionChange(MoodType.HAPPY)
-                appLauncher.launchWhatsApp()
-            }
-            text.contains("open maps") || text.contains("navigate") -> {
-                onExpressionChange(MoodType.IDLE)
-                appLauncher.launchMaps()
-            }
-            text.contains("open youtube") || text.contains("video") -> {
-                onExpressionChange(MoodType.EXCITED)
-                appLauncher.launchYouTube()
+            is ActionResult.Unhandled -> {
+                // Keep current mood
             }
         }
     }
 
     override fun onReadyForSpeech(params: Bundle?) {}
     override fun onBeginningOfSpeech() {}
+
     override fun onRmsChanged(rmsdB: Float) {
-        // High volume acoustic spike (like a shout or loud noise) can trigger shocked eyes
         if (rmsdB > 9.5f) {
             onExpressionChange(MoodType.SHOCKED)
         }
     }
+
     override fun onBufferReceived(buffer: ByteArray?) {}
     override fun onEndOfSpeech() {}
+
     override fun onError(error: Int) {
-        // Restart speech recognizer after silent timeouts
         if (isListening) {
             speechRecognizer?.destroy()
             startListening()
         }
     }
+
     override fun onEvent(eventType: Int, params: Bundle?) {}
 }

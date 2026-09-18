@@ -14,6 +14,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
+import com.doodle.floatingeyes.action.EyeActionRouter
 import com.doodle.floatingeyes.action.EyeAppLauncher
 import com.doodle.floatingeyes.model.MoodType
 import com.doodle.floatingeyes.view.DoodleEyeView
@@ -30,7 +31,7 @@ class FloatingEyeService : Service() {
     private var eyeView: DoodleEyeView? = null
     private var params: WindowManager.LayoutParams? = null
 
-    private lateinit var appLauncher: EyeAppLauncher
+    private lateinit var actionRouter: EyeActionRouter
     private var voiceListener: EyeVoiceListener? = null
 
     private var initialX = 0
@@ -45,7 +46,7 @@ class FloatingEyeService : Service() {
         super.onCreate()
         startForegroundNotification()
 
-        appLauncher = EyeAppLauncher(this)
+        actionRouter = EyeActionRouter(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val density = resources.displayMetrics.density
@@ -78,8 +79,8 @@ class FloatingEyeService : Service() {
 
         windowManager?.addView(eyeView, params)
 
-        // Initialize voice detection
-        voiceListener = EyeVoiceListener(this, appLauncher) { newMood ->
+        // Initialize voice detection with action router
+        voiceListener = EyeVoiceListener(this, actionRouter) { newMood ->
             eyeView?.post {
                 eyeView?.setMood(newMood)
             }

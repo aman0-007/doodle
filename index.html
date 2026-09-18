@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Mini Doodle</title>
-    <meta name="description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, and taps.">
+    <meta name="description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, battery, and voice commands to launch any app.">
     <meta property="og:title" content="Mini Doodle">
-    <meta property="og:description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, and taps.">
+    <meta property="og:description" content="Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, battery, and voice commands to launch any app.">
     <link rel="stylesheet" href="style.css?v=7.0">
 </head>
 
@@ -25,6 +25,10 @@
             <button id="shakeBtn" class="hud-btn shake-btn" title="Trigger dizzy shake effect">
                 <span>📳</span>
                 <span>Shake Doodle</span>
+            </button>
+            <button id="powersBtn" class="hud-btn powers-btn" title="View Companion Voice Powers & Open Any App Architecture">
+                <span>⚡</span>
+                <span>Powers</span>
             </button>
         </div>
 
@@ -137,6 +141,68 @@
         </button>
         <div class="mood-dock" id="moodDock">
             <!-- Populated dynamically via JS with all moods -->
+        </div>
+    </div>
+
+    <!-- Powers & Voice Command Catalog Modal -->
+    <div id="powersModal" class="powers-modal-backdrop" aria-hidden="true">
+        <div class="powers-modal-card">
+            <div class="powers-modal-header">
+                <div class="powers-title-wrap">
+                    <span class="powers-badge">CORE CAPABILITY</span>
+                    <h2 class="powers-title">Universal App Opener & Voice Router</h2>
+                </div>
+                <button id="closePowersModal" class="powers-close-btn" aria-label="Close modal">✕</button>
+            </div>
+
+            <div class="powers-modal-body">
+                <div class="powers-feature-banner">
+                    <div class="banner-icon">🚀</div>
+                    <div class="banner-text">
+                        <strong>Open Any App On Command:</strong>
+                        <span>The floating eyes index all installed launcher apps on your device and can launch any app instantly via voice.</span>
+                    </div>
+                </div>
+
+                <div class="powers-section">
+                    <h3 class="powers-subhead">Supported Natural Triggers</h3>
+                    <div class="powers-grid">
+                        <div class="power-card">
+                            <span class="power-intent">Direct App Launch</span>
+                            <code>"Open Instagram"</code>
+                            <code>"Launch Spotify"</code>
+                            <code>"Open Calculator"</code>
+                        </div>
+                        <div class="power-card">
+                            <span class="power-intent">Smart Synonyms</span>
+                            <code>"Open Insta" &rarr; Instagram</code>
+                            <code>"Open Music" &rarr; Spotify</code>
+                            <code>"Open Calc" &rarr; Calculator</code>
+                        </div>
+                        <div class="power-card">
+                            <span class="power-intent">Hardware Shortcuts</span>
+                            <code>"Open Camera" &rarr; Viewfinder</code>
+                            <code>"Open Maps" &rarr; Navigation</code>
+                            <code>"Open Browser" &rarr; Chrome / Web</code>
+                        </div>
+                        <div class="power-card">
+                            <span class="power-intent">Expression Moods</span>
+                            <code>"Sleep" &rarr; Droopy Eyes</code>
+                            <code>"Party" &rarr; Boombox Beats</code>
+                            <code>"Shocked" &rarr; Wide Pupils</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="powers-section">
+                    <h3 class="powers-subhead">Test Voice Command Emulator</h3>
+                    <div class="test-voice-bar">
+                        <input type="text" id="voiceTestInput" placeholder="Try typing: 'open instagram' or 'play music' or 'sleep'..." />
+                        <button id="testVoiceBtn" class="test-btn">Run Command</button>
+                    </div>
+                    <div id="voiceTestOutput" class="voice-output-tag">Enter a voice phrase to see response</div>
+                </div>
+            </div>
         </div>
     </div>
 
