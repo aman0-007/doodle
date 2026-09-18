@@ -21,5 +21,5 @@ sealed class ActionResult {
         val mood: MoodType
     ) : ActionResult()
 
-    object Unhandled : ActionResult()
+    data object Unhandled : ActionResult()
 }
