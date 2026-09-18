@@ -3,7 +3,6 @@ package com.doodle.floatingeyes.action
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import java.util.Locale
 
 /**
@@ -49,15 +48,8 @@ class AppDirectoryService(private val context: Context) {
                 addCategory(Intent.CATEGORY_LAUNCHER)
             }
 
-            val resolveInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.queryIntentActivities(
-                    mainIntent,
-                    PackageManager.ResolveInfoFlags.of(0L)
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.queryIntentActivities(mainIntent, 0)
-            }
+            @Suppress("DEPRECATION")
+            val resolveInfos = packageManager.queryIntentActivities(mainIntent, 0)
 
             for (resolveInfo in resolveInfos) {
                 val pkgName = resolveInfo.activityInfo?.packageName ?: continue
