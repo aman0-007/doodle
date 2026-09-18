@@ -14,6 +14,16 @@ const moodBubble = document.getElementById("mood-bubble");
 const soundToggle = document.getElementById("soundToggle");
 const soundIcon = document.getElementById("soundIcon");
 const soundLabel = document.getElementById("soundLabel");
+const micToggle = document.getElementById("micToggle");
+const micIcon = document.getElementById("micIcon");
+const micLabel = document.getElementById("micLabel");
+const modalMicToggle = document.getElementById("modalMicToggle");
+const modalMicIcon = document.getElementById("modalMicIcon");
+const modalMicText = document.getElementById("modalMicText");
+const voiceStatusBadge = document.getElementById("voiceStatusBadge");
+const hearingDot = document.getElementById("hearingDot");
+const hearingStatusText = document.getElementById("hearingStatusText");
+const liveTranscriptBox = document.getElementById("liveTranscriptBox");
 const shakeBtn = document.getElementById("shakeBtn");
 const batteryWidget = document.getElementById("batteryWidget");
 const batteryFill = document.getElementById("batteryFill");
@@ -704,64 +714,426 @@ if (closePowersModal && powersModal) {
     });
 }
 
-function simulateVoiceCommand(phrase) {
-    const clean = (phrase || "").toLowerCase().trim();
-    if (!clean) return;
+/* =========================================================
+   LIVE VOICE COMPANION & RECOGNITION ENGINE
+   Continuous listening with auto-recovery on silence.
+   Requires wake word: "Doodle" or "Doddle" to trigger commands.
+   Responds with high-pitched, cute companion voice synthesis.
+   ========================================================= */
+
+const SpeechRecognition = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+let recognition = null;
+let isMicActive = false;
+let isRecognitionRunning = false;
+let isSpeakingResponse = false;
+let micRestartTimeout = null;
+
+function updateMicUI(listening) {
+    if (micToggle) {
+        if (listening) {
+            micToggle.classList.add("active");
+            if (micLabel) micLabel.textContent = "Mic ON";
+        } else {
+            micToggle.classList.remove("active");
+            if (micLabel) micLabel.textContent = "Mic OFF";
+        }
+    }
+
+    if (modalMicToggle) {
+        if (listening) {
+            modalMicToggle.classList.add("active");
+            if (modalMicText) modalMicText.textContent = "Stop Listening";
+            if (modalMicIcon) modalMicIcon.textContent = "⏹️";
+        } else {
+            modalMicToggle.classList.remove("active");
+            if (modalMicText) modalMicText.textContent = "Start Listening";
+            if (modalMicIcon) modalMicIcon.textContent = "🎤";
+        }
+    }
+
+    if (voiceStatusBadge) {
+        if (listening) {
+            voiceStatusBadge.textContent = "LISTENING LIVE";
+            voiceStatusBadge.classList.add("listening");
+        } else {
+            voiceStatusBadge.textContent = "MIC PAUSED";
+            voiceStatusBadge.classList.remove("listening");
+        }
+    }
+
+    if (hearingDot) {
+        if (listening) {
+            hearingDot.classList.add("listening");
+        } else {
+            hearingDot.classList.remove("listening");
+        }
+    }
+
+    if (hearingStatusText) {
+        if (listening) {
+            hearingStatusText.textContent = "Listening continuously... Say 'Doodle' followed by your command!";
+        } else {
+            hearingStatusText.textContent = "Microphone paused. Click 'Start Listening' to speak with Doodle.";
+        }
+    }
+}
+
+function doodleSpeakAndEmote(voiceText, bubbleText, expressionName) {
+    if (expressionName) {
+        playExpression(expressionName);
+    }
+    showMoodBubble(bubbleText || voiceText, 3800);
+
+    // Pause recognition while speaking so Doodle doesn't hear itself
+    if (isMicActive && recognition && isRecognitionRunning) {
+        isSpeakingResponse = true;
+        try {
+            recognition.abort();
+        } catch (e) {}
+    }
+
+    DoodleVoice.speak(
+        voiceText,
+        () => {
+            // onStart: eye bounce/pulse talking animation
+            if (doodle) {
+                doodle.classList.add("talking");
+            }
+        },
+        () => {
+            // onEnd: safely resume continuous listening
+            if (doodle) {
+                doodle.classList.remove("talking");
+            }
+            if (isMicActive) {
+                setTimeout(() => {
+                    isSpeakingResponse = false;
+                    restartMicSession();
+                }, 350);
+            } else {
+                isSpeakingResponse = false;
+            }
+        }
+    );
+}
+
+function parseVoiceInput(spokenText) {
+    const clean = (spokenText || "").toLowerCase().trim();
+    if (!clean) return null;
+
+    // Wake word pattern matching start of sentence ("doodle", "doddle", "hey doodle", "ok doddle")
+    const wakeRegex = /^(?:hey\s+|hi\s+|ok\s+|okay\s+|yo\s+|hello\s+)?(?:doodle|doddle|dudle|doodler|doodel|duddle)\b[,\s]*(.*)$/i;
+    const match = clean.match(wakeRegex);
+
+    if (!match) {
+        return {
+            hasWakeWord: false,
+            raw: clean,
+            command: clean
+        };
+    }
+
+    return {
+        hasWakeWord: true,
+        raw: clean,
+        command: (match[1] || "").trim()
+    };
+}
+
+function executeVoiceCommand(spokenText, isFromMic = false) {
+    const parsed = parseVoiceInput(spokenText);
+    if (!parsed) return;
 
     SoundFX.init();
 
-    // App launches
-    const openPrefixes = ["open ", "launch ", "start ", "go to "];
+    // If coming from live mic and wake word is missing:
+    if (isFromMic && !parsed.hasWakeWord) {
+        if (voiceTestOutput) {
+            voiceTestOutput.innerHTML = `⚠️ <em>Heard "${parsed.raw}". Start with <strong>"Doodle..."</strong> so I know you're calling me!</em>`;
+        }
+        showMoodBubble(`Say "Doodle [command]"! 🐾`, 2200);
+        return;
+    }
+
+    const command = parsed.command;
+
+    // 1. If user just called the wake word "Doodle!" / "Hey Doddle":
+    if (!command || ["hi", "hello", "hey", "what's up", "listen", "you there"].includes(command)) {
+        doodleSpeakAndEmote(
+            "Hi! Doodle is listening! Tell me what you'd like me to do!",
+            "Hi! Doodle is listening! 💖",
+            "happy"
+        );
+        if (voiceTestOutput) {
+            voiceTestOutput.innerHTML = `✨ <strong>Wake Word Heard!</strong> Doodle is awake and ready for your command.`;
+        }
+        return;
+    }
+
+    // 2. Explicit app open triggers: "open X", "launch X", "start X", "go to X"
+    const openPrefixes = ["open ", "launch ", "start ", "go to ", "run ", "show me "];
     for (const prefix of openPrefixes) {
-        if (clean.startsWith(prefix)) {
-            const target = clean.substring(prefix.length).trim();
+        if (command.startsWith(prefix)) {
+            const target = command.substring(prefix.length).trim();
             const formatted = target.charAt(0).toUpperCase() + target.slice(1);
-            playExpression("excited");
-            SoundFX.play("jump");
-            if (voiceTestOutput) {
-                voiceTestOutput.innerHTML = `🚀 <strong>Matched Intent:</strong> App Launch &rarr; <span style="color:#19eaff">Opening ${formatted}</span>`;
+
+            let cuteReply = `Opening ${formatted} right now for you!`;
+            let cuteBubble = `Opening ${formatted}... 🚀`;
+            let mood = "excited";
+
+            if (/youtube/i.test(target)) {
+                cuteReply = "Opening YouTube! Have fun watching videos!";
+                cuteBubble = "Opening YouTube... 📺";
+            } else if (/spotify|music|songs/i.test(target)) {
+                cuteReply = "Opening Spotify! Let's get the party grooves going!";
+                cuteBubble = "Opening Spotify... 🎵";
+                mood = "boombox";
+            } else if (/camera|photo/i.test(target)) {
+                cuteReply = "Opening Camera! Say cheese and smile!";
+                cuteBubble = "Opening Camera... 📸";
+                mood = "wink";
+            } else if (/calculator|calc/i.test(target)) {
+                cuteReply = "Opening Calculator! Let's crunch some numbers!";
+                cuteBubble = "Opening Calculator... 🧮";
+                mood = "thinking";
+            } else if (/maps|navigation|directions/i.test(target)) {
+                cuteReply = "Opening Maps! Let's explore together!";
+                cuteBubble = "Opening Maps... 🗺️";
+                mood = "look_up";
+            } else if (/instagram|insta/i.test(target)) {
+                cuteReply = "Opening Instagram! Check out the fun posts!";
+                cuteBubble = "Opening Instagram... 📸";
             }
-            showMoodBubble(`Opening ${formatted}...`);
+
+            doodleSpeakAndEmote(cuteReply, cuteBubble, mood);
+            if (voiceTestOutput) {
+                voiceTestOutput.innerHTML = `🚀 <strong>App Launch:</strong> <span style="color:#19eaff">Opening ${formatted}</span>`;
+            }
             return;
         }
     }
 
-    // Direct phrases
-    if (clean.includes("sleep") || clean.includes("night") || clean.includes("tired")) {
-        playExpression("sleep");
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💤 <strong>Matched Intent:</strong> Mood &rarr; <span style="color:#6ee7b7">Sleeping Eyes</span>`;
-    } else if (clean.includes("party") || clean.includes("music") || clean.includes("dance")) {
-        playExpression("boombox");
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `📻 <strong>Matched Intent:</strong> Boombox &rarr; <span style="color:#f43f5e">Audio Beats Activated</span>`;
-    } else if (clean.includes("hello") || clean.includes("wake") || clean.includes("happy")) {
-        playExpression("happy");
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `✨ <strong>Matched Intent:</strong> Greeting &rarr; <span style="color:#38ef7d">Happy Eyes</span>`;
-    } else if (clean.includes("love") || clean.includes("cute")) {
-        playExpression("love");
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💖 <strong>Matched Intent:</strong> Affection &rarr; <span style="color:#ff4d8d">Heart Pupils</span>`;
-    } else if (clean.includes("shock") || clean.includes("omg") || clean.includes("wow")) {
-        playExpression("shocked");
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `⚡ <strong>Matched Intent:</strong> Surprise &rarr; <span style="color:#fbbf24">Shocked Dialation</span>`;
+    // 3. Expressions and Moods
+    if (command.includes("sleep") || command.includes("night") || command.includes("tired") || command.includes("nap")) {
+        doodleSpeakAndEmote(
+            "Goodnight! Doodle is going to sleep now. Sweet dreams! Zzz...",
+            "Sleeping... Zzz 💤",
+            "sleep"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💤 <strong>Mood:</strong> <span style="color:#6ee7b7">Sleeping Eyes (Goodnight!)</span>`;
+    } else if (command.includes("party") || command.includes("music") || command.includes("dance") || command.includes("beats")) {
+        doodleSpeakAndEmote(
+            "Yay! Party time, let's dance to the beats!",
+            "Party Beats! 📻🎶",
+            "boombox"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `📻 <strong>Mood:</strong> <span style="color:#f43f5e">Party Boombox Beats</span>`;
+    } else if (command.includes("wake") || command.includes("morning") || command.includes("up")) {
+        doodleSpeakAndEmote(
+            "Good morning! Doodle is wide awake and ready to play!",
+            "Doodle is awake! ☀️",
+            "happy"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `✨ <strong>Mood:</strong> <span style="color:#38ef7d">Wide Awake & Happy</span>`;
+    } else if (command.includes("love") || command.includes("cute") || command.includes("sweet") || command.includes("friend")) {
+        doodleSpeakAndEmote(
+            "Aww, you are the sweetest! Doodle loves you so much too!",
+            "I love you too! 💖",
+            "love"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💖 <strong>Mood:</strong> <span style="color:#ff4d8d">Heart Pupils (Love)</span>`;
+    } else if (command.includes("shock") || command.includes("omg") || command.includes("wow") || command.includes("scared")) {
+        doodleSpeakAndEmote(
+            "Whoa! That gave Doodle quite a jump!",
+            "Whoa surprise! ⚡",
+            "shocked"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `⚡ <strong>Mood:</strong> <span style="color:#fbbf24">Surprise Dialation</span>`;
+    } else if (command.includes("wink") || command.includes("playful")) {
+        doodleSpeakAndEmote(
+            "Wink wink! Doodle is always your playful buddy!",
+            "Wink! 😉",
+            "wink"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `😉 <strong>Mood:</strong> <span style="color:#19eaff">Playful Wink</span>`;
+    } else if (command.includes("angry") || command.includes("mad") || command.includes("grumpy")) {
+        doodleSpeakAndEmote(
+            "Hmph! Doodle is making a grumpy little face now!",
+            "Grumpy doodle! 💢",
+            "angry"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💢 <strong>Mood:</strong> <span style="color:#ef4444">Grumpy Angled Eyes</span>`;
+    } else if (command.includes("dizzy") || command.includes("shake") || command.includes("spin")) {
+        doodleSpeakAndEmote(
+            "Whoaa, everything is spinning around!",
+            "Whoaa dizzy! 💫",
+            "dizzy"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `💫 <strong>Mood:</strong> <span style="color:#f472b6">Dizzy Spiral Shake</span>`;
+    } else if (command.includes("cool") || command.includes("glasses") || command.includes("specs")) {
+        doodleSpeakAndEmote(
+            "Check out my cyber specs! Look how cool Doodle looks!",
+            "Looking cool! 😎",
+            "cool"
+        );
+        if (voiceTestOutput) voiceTestOutput.innerHTML = `😎 <strong>Mood:</strong> <span style="color:#19eaff">Cool Specs</span>`;
     } else {
-        // Assume direct app name
-        const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
-        playExpression("excited");
-        SoundFX.play("jump");
+        // Fallback app match or curious response
+        const formatted = command.charAt(0).toUpperCase() + command.slice(1);
+        doodleSpeakAndEmote(
+            `Doodle heard ${formatted}! Opening ${formatted} for you!`,
+            `Opening ${formatted}... 🚀`,
+            "excited"
+        );
         if (voiceTestOutput) {
-            voiceTestOutput.innerHTML = `🚀 <strong>Fuzzy Match:</strong> App Launch &rarr; <span style="color:#19eaff">Opening ${formatted}</span>`;
+            voiceTestOutput.innerHTML = `🚀 <strong>Action:</strong> <span style="color:#19eaff">Opening ${formatted}</span>`;
         }
-        showMoodBubble(`Opening ${formatted}...`);
     }
+}
+
+function initSpeechRecognition() {
+    if (!SpeechRecognition) {
+        console.warn("SpeechRecognition not supported in this browser.");
+        return null;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.maxAlternatives = 3;
+
+    rec.onstart = () => {
+        isRecognitionRunning = true;
+        updateMicUI(true);
+    };
+
+    rec.onresult = (event) => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+
+        const currentText = (finalTranscript || interimTranscript).trim();
+        if (currentText && liveTranscriptBox) {
+            liveTranscriptBox.innerHTML = `<span>&ldquo;${currentText}&rdquo;</span>`;
+        }
+
+        // When a final phrase is recognized
+        if (finalTranscript.trim()) {
+            executeVoiceCommand(finalTranscript.trim(), true);
+        }
+    };
+
+    rec.onerror = (event) => {
+        // Non-fatal errors like 'no-speech' happen during momentary pauses.
+        // Never terminate continuous listening on silence!
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            isMicActive = false;
+            updateMicUI(false);
+            showMoodBubble("Mic permission needed to hear you!");
+        }
+    };
+
+    rec.onend = () => {
+        isRecognitionRunning = false;
+        // Robust continuous listening loop: auto-rearm
+        if (isMicActive && !isSpeakingResponse) {
+            clearTimeout(micRestartTimeout);
+            micRestartTimeout = setTimeout(() => {
+                restartMicSession();
+            }, 200);
+        }
+    };
+
+    return rec;
+}
+
+function restartMicSession() {
+    if (!isMicActive || isSpeakingResponse || isRecognitionRunning) return;
+    if (!recognition) {
+        recognition = initSpeechRecognition();
+    }
+    if (recognition) {
+        try {
+            recognition.start();
+        } catch (e) {
+            // Ignore if already active or transitioning
+        }
+    }
+}
+
+function toggleMic(desiredState) {
+    SoundFX.init();
+    const newState = desiredState !== undefined ? desiredState : !isMicActive;
+
+    if (!SpeechRecognition) {
+        showMoodBubble("Web Speech not supported in this browser");
+        return;
+    }
+
+    isMicActive = newState;
+    clearTimeout(micRestartTimeout);
+
+    if (isMicActive) {
+        SoundFX.play("listen_start");
+        updateMicUI(true);
+        if (liveTranscriptBox) {
+            liveTranscriptBox.innerHTML = `<span class="transcript-placeholder">Listening for 'Doodle ...'</span>`;
+        }
+        doodleSpeakAndEmote(
+            "Doodle is listening! Say Doodle followed by your command!",
+            "Listening... Say 'Doodle [command]'",
+            "happy"
+        );
+        restartMicSession();
+    } else {
+        SoundFX.play("listen_stop");
+        updateMicUI(false);
+        if (recognition) {
+            try {
+                recognition.stop();
+            } catch (e) {}
+        }
+        showMoodBubble("Mic paused");
+    }
+}
+
+if (micToggle) {
+    micToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleMic();
+    });
+}
+
+if (modalMicToggle) {
+    modalMicToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleMic();
+    });
 }
 
 if (testVoiceBtn && voiceTestInput) {
     testVoiceBtn.addEventListener("click", () => {
-        simulateVoiceCommand(voiceTestInput.value);
+        const text = voiceTestInput.value.trim();
+        if (text) {
+            executeVoiceCommand(text, false);
+        }
     });
 
     voiceTestInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-            simulateVoiceCommand(voiceTestInput.value);
+            const text = voiceTestInput.value.trim();
+            if (text) {
+                executeVoiceCommand(text, false);
+            }
         }
     });
 }
@@ -775,3 +1147,4 @@ applyExpression("idle", false);
 scheduleBlink();
 resetIdle();
 initBattery();
+

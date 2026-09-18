@@ -3,9 +3,13 @@ package com.doodle.floatingeyes.voice
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import com.doodle.floatingeyes.action.ActionResult
 import com.doodle.floatingeyes.action.EyeActionRouter
 import com.doodle.floatingeyes.model.MoodType
@@ -13,7 +17,8 @@ import java.util.Locale
 
 /**
  * Real-time Speech Recognizer integrating with EyeActionRouter
- * to drive universal app launching, smart actions, and eye moods.
+ * with robust continuous listening (auto-recovery on silence) and
+ * high-pitched cute companion voice synthesis.
  */
 class EyeVoiceListener(
     private val context: Context,
@@ -21,53 +26,92 @@ class EyeVoiceListener(
     private val onExpressionChange: (MoodType) -> Unit
 ) : RecognitionListener {
 
+    private val handler = Handler(Looper.getMainLooper())
     private var speechRecognizer: SpeechRecognizer? = null
-    private var isListening = false
+    private var isContinuousListeningEnabled = false
+    private var isSessionActive = false
+    private var isSpeakingResponse = false
+
+    private var textToSpeech: TextToSpeech? = null
+
+    private val restartRunnable = Runnable {
+        if (isContinuousListeningEnabled && !isSpeakingResponse) {
+            startRecognitionSession()
+        }
+    }
+
+    init {
+        // Initialize Android TextToSpeech with cute persona parameters
+        textToSpeech = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                textToSpeech?.language = Locale.US
+                textToSpeech?.setPitch(1.68f)      // High, cute pet pitch
+                textToSpeech?.setSpeechRate(1.14f)  // Enthusiastic brisk pace
+            }
+        }
+    }
 
     fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) return
-        if (isListening) return
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(this@EyeVoiceListener)
-        }
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-        }
-
-        speechRecognizer?.startListening(intent)
-        isListening = true
+        isContinuousListeningEnabled = true
+        startRecognitionSession()
     }
 
     fun stopListening() {
-        speechRecognizer?.stopListening()
-        speechRecognizer?.destroy()
+        isContinuousListeningEnabled = false
+        handler.removeCallbacks(restartRunnable)
+        try {
+            speechRecognizer?.stopListening()
+            speechRecognizer?.destroy()
+        } catch (e: Exception) {}
         speechRecognizer = null
-        isListening = false
+        isSessionActive = false
+        textToSpeech?.stop()
+    }
+
+    private fun startRecognitionSession() {
+        if (!isContinuousListeningEnabled || isSpeakingResponse) return
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) return
+
+        try {
+            speechRecognizer?.destroy()
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                setRecognitionListener(this@EyeVoiceListener)
+            }
+
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            }
+
+            speechRecognizer?.startListening(intent)
+            isSessionActive = true
+        } catch (e: Exception) {
+            isSessionActive = false
+            scheduleRestart()
+        }
+    }
+
+    private fun scheduleRestart() {
+        if (!isContinuousListeningEnabled || isSpeakingResponse) return
+        handler.removeCallbacks(restartRunnable)
+        handler.postDelayed(restartRunnable, 300)
     }
 
     override fun onResults(results: Bundle?) {
+        isSessionActive = false
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
             val spokenText = matches[0]
             handleCommand(spokenText)
-        }
-        if (isListening) {
-            startListening()
+        } else {
+            scheduleRestart()
         }
     }
 
     override fun onPartialResults(partialResults: Bundle?) {
-        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        if (!matches.isNullOrEmpty()) {
-            val partial = matches[0]
-            // We can check high-priority commands on partial speech
-            handleCommand(partial)
-        }
+        // Partial speech preview
     }
 
     private fun handleCommand(text: String) {
@@ -75,17 +119,59 @@ class EyeVoiceListener(
         when (result) {
             is ActionResult.Success -> {
                 onExpressionChange(result.targetMood)
+                result.cuteVoiceResponse?.let { speakCuteResponse(it) } ?: scheduleRestart()
             }
             is ActionResult.NotFound -> {
                 onExpressionChange(result.suggestedMood)
+                result.cuteVoiceResponse?.let { speakCuteResponse(it) } ?: scheduleRestart()
             }
             is ActionResult.HandledMood -> {
                 onExpressionChange(result.mood)
+                result.cuteVoiceResponse?.let { speakCuteResponse(it) } ?: scheduleRestart()
+            }
+            is ActionResult.NeedWakeWord -> {
+                // User didn't say Doodle: gently prompt or keep current mood
+                speakCuteResponse(result.prompt)
             }
             is ActionResult.Unhandled -> {
-                // Keep current mood
+                scheduleRestart()
             }
         }
+    }
+
+    private fun speakCuteResponse(message: String) {
+        val tts = textToSpeech
+        if (tts == null || message.isBlank()) {
+            scheduleRestart()
+            return
+        }
+
+        isSpeakingResponse = true
+        try {
+            speechRecognizer?.stopListening()
+        } catch (e: Exception) {}
+
+        val utteranceId = "doodle_cute_${System.currentTimeMillis()}"
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+
+            override fun onDone(utteranceId: String?) {
+                handler.post {
+                    isSpeakingResponse = false
+                    scheduleRestart()
+                }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                handler.post {
+                    isSpeakingResponse = false
+                    scheduleRestart()
+                }
+            }
+        })
+
+        tts.speak(message, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
 
     override fun onReadyForSpeech(params: Bundle?) {}
@@ -101,10 +187,10 @@ class EyeVoiceListener(
     override fun onEndOfSpeech() {}
 
     override fun onError(error: Int) {
-        if (isListening) {
-            speechRecognizer?.destroy()
-            startListening()
-        }
+        isSessionActive = false
+        // Non-fatal errors like speech timeout (7) or no match (6) mean silence.
+        // Keep listening by scheduling restart rather than stopping!
+        scheduleRestart()
     }
 
     override fun onEvent(eventType: Int, params: Bundle?) {}

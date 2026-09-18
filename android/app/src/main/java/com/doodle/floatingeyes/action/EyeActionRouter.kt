@@ -20,15 +20,38 @@ class EyeActionRouter(
 
     /**
      * Parses an arbitrary voice speech string and routes it to the corresponding action.
+     * Enforces the wake word requirement ("doodle" / "doddle").
      */
     fun dispatchVoiceCommand(spokenText: String): ActionResult {
         val clean = spokenText.lowercase(Locale.ROOT).trim()
+        if (clean.isEmpty()) return ActionResult.Unhandled
+
+        // Check for wake word prefix: "doodle", "doddle", "hey doodle", "ok doddle", etc.
+        val wakeRegex = Regex("""^(?:hey\s+|hi\s+|ok\s+|yo\s+|hello\s+)?(?:doodle|doddle|dudle|doodler|doodel)\b[,\s]*(.*)$""", RegexOption.IGNORE_CASE)
+        val match = wakeRegex.find(clean)
+
+        if (match == null) {
+            // User did not say the wake word "Doodle" / "Doddle"
+            showFeedback("Say 'Doodle' before your command!")
+            return ActionResult.NeedWakeWord(spokenText, "Start your command with 'Doodle' so I know you're calling me!")
+        }
+
+        val command = match.groupValues.getOrNull(1)?.trim() ?: ""
+
+        // If the user just said "Doodle" / "Hey Doddle" to wake it up:
+        if (command.isEmpty() || command in listOf("hi", "hello", "hey", "what's up", "listen")) {
+            showFeedback("Hi! Doodle is listening!")
+            return ActionResult.HandledMood(
+                mood = MoodType.HAPPY,
+                cuteVoiceResponse = "Hi! Doodle is listening, what can I do for you?"
+            )
+        }
 
         // 1. Explicit app open triggers: "open X", "launch X", "start X", "go to X", "run X"
         val openPrefixes = listOf("open ", "launch ", "start ", "go to ", "run ", "show me ")
         for (prefix in openPrefixes) {
-            if (clean.startsWith(prefix) || clean.contains(" $prefix")) {
-                val appTarget = clean.substringAfter(prefix).trim()
+            if (command.startsWith(prefix) || command.contains(" $prefix")) {
+                val appTarget = command.substringAfter(prefix).trim()
                 if (appTarget.isNotEmpty()) {
                     val openedApp = appLauncher.launchAppByName(appTarget)
                     return if (openedApp != null) {
@@ -36,11 +59,16 @@ class EyeActionRouter(
                         ActionResult.Success(
                             message = "Opened $openedApp",
                             targetMood = MoodType.EXCITED,
-                            appName = openedApp
+                            appName = openedApp,
+                            cuteVoiceResponse = "Opening $openedApp right now for you!"
                         )
                     } else {
                         showFeedback("Couldn't find \"$appTarget\"")
-                        ActionResult.NotFound(query = appTarget, suggestedMood = MoodType.SHOCKED)
+                        ActionResult.NotFound(
+                            query = appTarget,
+                            suggestedMood = MoodType.SHOCKED,
+                            cuteVoiceResponse = "Oh no, I couldn't find $appTarget on your device!"
+                        )
                     }
                 }
             }
@@ -48,57 +76,62 @@ class EyeActionRouter(
 
         // 2. Direct standalone app keywords or shortcut phrases
         when {
-            clean.contains("camera") || clean.contains("take a picture") || clean.contains("take photo") -> {
+            command.contains("camera") || command.contains("take a picture") || command.contains("take photo") -> {
                 appLauncher.launchCamera()
                 showFeedback("Opening Camera")
-                return ActionResult.Success("Opened Camera", MoodType.EXCITED, "Camera")
+                return ActionResult.Success("Opened Camera", MoodType.EXCITED, "Camera", "Opening Camera! Say cheese!")
             }
-            clean.contains("maps") || clean.contains("navigate") || clean.contains("directions") -> {
+            command.contains("maps") || command.contains("navigate") || command.contains("directions") -> {
                 appLauncher.launchMaps()
                 showFeedback("Opening Maps")
-                return ActionResult.Success("Opened Maps", MoodType.IDLE, "Maps")
+                return ActionResult.Success("Opened Maps", MoodType.IDLE, "Maps", "Opening Maps! Let's explore!")
             }
-            clean.contains("browser") || clean.contains("surf web") || clean.contains("search web") -> {
+            command.contains("browser") || command.contains("surf web") || command.contains("search web") -> {
                 appLauncher.launchBrowser()
                 showFeedback("Opening Browser")
-                return ActionResult.Success("Opened Browser", MoodType.HAPPY, "Browser")
+                return ActionResult.Success("Opened Browser", MoodType.HAPPY, "Browser", "Opening Browser for you!")
             }
         }
 
-        // 3. Fallback app discovery: If user just speaks the app name alone (e.g. "Instagram", "Spotify", "Calculator")
-        val directMatch = appLauncher.launchAppByName(clean)
+        // 3. Fallback app discovery: If user just speaks the app name (e.g. "Instagram", "Spotify", "Calculator")
+        val directMatch = appLauncher.launchAppByName(command)
         if (directMatch != null) {
             showFeedback("Opening $directMatch")
-            return ActionResult.Success("Opened $directMatch", MoodType.EXCITED, directMatch)
+            return ActionResult.Success("Opened $directMatch", MoodType.EXCITED, directMatch, "Opening $directMatch for you!")
         }
 
         // 4. Emotional and conversational expression triggers
         return when {
-            clean.contains("sleep") || clean.contains("goodnight") || clean.contains("tired") || clean.contains("nap") -> {
-                ActionResult.HandledMood(MoodType.SLEEP)
+            command.contains("sleep") || command.contains("goodnight") || command.contains("tired") || command.contains("nap") -> {
+                ActionResult.HandledMood(MoodType.SLEEP, "Goodnight! Doodle is going to sleep now. Zzz...")
             }
-            clean.contains("wake up") || clean.contains("hello") || clean.contains("hey") || clean.contains("good morning") -> {
-                ActionResult.HandledMood(MoodType.HAPPY)
+            command.contains("wake up") || command.contains("hello") || command.contains("hey") || command.contains("good morning") -> {
+                ActionResult.HandledMood(MoodType.HAPPY, "Good morning! Doodle is wide awake and happy!")
             }
-            clean.contains("love") || clean.contains("cute") || clean.contains("sweet") || clean.contains("kiss") -> {
-                ActionResult.HandledMood(MoodType.LOVE)
+            command.contains("love") || command.contains("cute") || command.contains("sweet") || command.contains("kiss") -> {
+                ActionResult.HandledMood(MoodType.LOVE, "Aww, Doodle loves you so much too!")
             }
-            clean.contains("angry") || clean.contains("mad") || clean.contains("grr") || clean.contains("stop") -> {
-                ActionResult.HandledMood(MoodType.ANGRY)
+            command.contains("angry") || command.contains("mad") || command.contains("grr") || command.contains("stop") -> {
+                ActionResult.HandledMood(MoodType.ANGRY, "Hmph! Doodle is grumpy now!")
             }
-            clean.contains("party") || clean.contains("dance") || clean.contains("music") || clean.contains("beat") -> {
-                ActionResult.HandledMood(MoodType.BOOMBOX)
+            command.contains("party") || command.contains("dance") || command.contains("music") || command.contains("beat") -> {
+                ActionResult.HandledMood(MoodType.BOOMBOX, "Yay! Party time, let's dance to the beats!")
             }
-            clean.contains("wow") || clean.contains("omg") || clean.contains("shock") || clean.contains("surprise") -> {
-                ActionResult.HandledMood(MoodType.SHOCKED)
+            command.contains("wow") || command.contains("omg") || command.contains("shock") || command.contains("surprise") -> {
+                ActionResult.HandledMood(MoodType.SHOCKED, "Whoa! That took me by surprise!")
             }
-            clean.contains("happy") || clean.contains("smile") || clean.contains("yay") -> {
-                ActionResult.HandledMood(MoodType.HAPPY)
+            command.contains("happy") || command.contains("smile") || command.contains("yay") -> {
+                ActionResult.HandledMood(MoodType.HAPPY, "Yay! Doodle is full of joy today!")
             }
-            clean.contains("excite") || clean.contains("awesome") || clean.contains("cool") -> {
-                ActionResult.HandledMood(MoodType.EXCITED)
+            command.contains("excite") || command.contains("awesome") || command.contains("cool") -> {
+                ActionResult.HandledMood(MoodType.EXCITED, "Woohoo! That sounds so cool!")
             }
-            else -> ActionResult.Unhandled
+            else -> {
+                ActionResult.HandledMood(
+                    MoodType.CONFUSED,
+                    cuteVoiceResponse = "Doodle heard: $command! I'm learning new tricks every day!"
+                )
+            }
         }
     }
 

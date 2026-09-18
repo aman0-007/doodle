@@ -12,12 +12,17 @@
 </head>
 
 <body>
-    <!-- Top HUD Controls (Sound, Shake, Battery) -->
+    <!-- Top HUD Controls (Sound, Mic, Shake, Battery) -->
     <header class="hud-header" id="hudHeader">
         <div class="hud-left">
             <button id="soundToggle" class="hud-btn" title="Toggle 8-bit Sound FX">
                 <span id="soundIcon">🔊</span>
                 <span id="soundLabel">Sound ON</span>
+            </button>
+            <button id="micToggle" class="hud-btn mic-btn" title="Toggle Continuous Microphone (Start commands with 'Doodle')">
+                <span id="micIcon">🎤</span>
+                <span id="micLabel">Mic OFF</span>
+                <span id="micPulseDot" class="mic-pulse-dot" aria-hidden="true"></span>
             </button>
         </div>
 
@@ -46,6 +51,9 @@
     <!-- Main Doodle Stage (Focused strictly on clean expressive eyes) -->
     <main id="doodle-stage">
         <div id="doodle">
+            <!-- Cute Voice & Mood Speech Bubble (Doodle's voice response) -->
+            <div id="mood-bubble" class="mood-bubble" aria-live="polite"></div>
+
             <!-- Floating Sleeping Zed Structures (Zero Emoji - Custom Geometric Zeds) -->
             <div id="sleep-orbit" class="sleep-orbit" aria-hidden="true">
                 <div class="zed-structure z1">
@@ -156,51 +164,68 @@
             </div>
 
             <div class="powers-modal-body">
-                <div class="powers-feature-banner">
-                    <div class="banner-icon">🚀</div>
-                    <div class="banner-text">
-                        <strong>Open Any App On Command:</strong>
-                        <span>The floating eyes index all installed launcher apps on your device and can launch any app instantly via voice.</span>
+                <!-- Live Voice Recognition Controller -->
+                <div class="voice-live-card" id="voiceLiveCard">
+                    <div class="voice-live-header">
+                        <div class="voice-live-meta">
+                            <span class="voice-badge" id="voiceStatusBadge">MIC READY</span>
+                            <h3 class="voice-card-title">Live Voice Companion</h3>
+                            <p class="voice-card-subtitle">Starts with <strong>"Doodle"</strong> or <strong>"Doddle"</strong> &bull; Responds with a cute voice</p>
+                        </div>
+                        <button id="modalMicToggle" class="modal-mic-btn" title="Toggle Live Microphone Listening">
+                            <span id="modalMicIcon">🎤</span>
+                            <span id="modalMicText">Start Listening</span>
+                        </button>
+                    </div>
+
+                    <div class="live-hearing-display">
+                        <div class="hearing-status-row">
+                            <span class="hearing-indicator" id="hearingDot"></span>
+                            <span id="hearingStatusText" class="hearing-status-text">Microphone paused. Click "Start Listening" or the Mic button in the header.</span>
+                        </div>
+                        <div class="live-transcript-box" id="liveTranscriptBox">
+                            <span class="transcript-placeholder">Spoken words appear here in real-time...</span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="powers-section">
-                    <h3 class="powers-subhead">Supported Natural Triggers</h3>
+                    <h3 class="powers-subhead">Wake Word: Start with "Doodle"</h3>
                     <div class="powers-grid">
                         <div class="power-card">
-                            <span class="power-intent">Direct App Launch</span>
-                            <code>"Open Instagram"</code>
-                            <code>"Launch Spotify"</code>
-                            <code>"Open Calculator"</code>
+                            <span class="power-intent">App Launching</span>
+                            <code>"Doodle open Instagram"</code>
+                            <code>"Doodle launch Spotify"</code>
+                            <code>"Doodle open Camera"</code>
                         </div>
                         <div class="power-card">
-                            <span class="power-intent">Smart Synonyms</span>
-                            <code>"Open Insta" &rarr; Instagram</code>
-                            <code>"Open Music" &rarr; Spotify</code>
-                            <code>"Open Calc" &rarr; Calculator</code>
+                            <span class="power-intent">Cute Interactions</span>
+                            <code>"Doodle wake up"</code>
+                            <code>"Doodle I love you"</code>
+                            <code>"Doodle shock"</code>
                         </div>
                         <div class="power-card">
-                            <span class="power-intent">Hardware Shortcuts</span>
-                            <code>"Open Camera" &rarr; Viewfinder</code>
-                            <code>"Open Maps" &rarr; Navigation</code>
-                            <code>"Open Browser" &rarr; Chrome / Web</code>
+                            <span class="power-intent">Mood Changing</span>
+                            <code>"Doodle sleep"</code>
+                            <code>"Doodle party"</code>
+                            <code>"Doodle dance"</code>
                         </div>
                         <div class="power-card">
-                            <span class="power-intent">Expression Moods</span>
-                            <code>"Sleep" &rarr; Droopy Eyes</code>
-                            <code>"Party" &rarr; Boombox Beats</code>
-                            <code>"Shocked" &rarr; Wide Pupils</code>
+                            <span class="power-intent">Cute Companion Voice</span>
+                            <code>"Doodle hello" &rarr; Responds back</code>
+                            <code>Speaks with cheerful high pitch</code>
+                            <code>Shows speech bubble above eyes</code>
                         </div>
                     </div>
                 </div>
 
                 <div class="powers-section">
-                    <h3 class="powers-subhead">Test Voice Command Emulator</h3>
+                    <h3 class="powers-subhead">Command & Voice Tester</h3>
                     <div class="test-voice-bar">
-                        <input type="text" id="voiceTestInput" placeholder="Try typing: 'open instagram' or 'play music' or 'sleep'..." />
+                        <input type="text" id="voiceTestInput" placeholder="Type: 'doodle sleep' or 'doodle open spotify' or 'doodle hello'..." />
                         <button id="testVoiceBtn" class="test-btn">Run Command</button>
                     </div>
-                    <div id="voiceTestOutput" class="voice-output-tag">Enter a voice phrase to see response</div>
+                    <div id="voiceTestOutput" class="voice-output-tag">Enter a voice phrase to see response and hear Doodle's cute voice!</div>
                 </div>
             </div>
         </div>

@@ -195,9 +195,25 @@ const SoundFX = (function() {
                 break;
 
             case "listening":
-                // Soft sonar radar ping
-                sweep(1200, 900, "sine", 0, 0.18, 0.12);
-                tone(900, "sine", 0.15, 0.12, 0.08);
+            case "listen_start":
+                // Soft dual rising chime indicating listening
+                tone(659.25, "sine", 0, 0.08, 0.12);
+                tone(880, "sine", 0.07, 0.12, 0.14);
+                break;
+
+            case "listen_stop":
+                // Gentle falling tone indicating mic paused
+                tone(783.99, "sine", 0, 0.08, 0.10);
+                tone(523.25, "sine", 0.07, 0.10, 0.08);
+                break;
+
+            case "cute_chirp":
+            case "cute_perk":
+                // Cheerful 4-note ascending companion pet chirp
+                tone(1046.50, "sine", 0, 0.04, 0.12); // C6
+                tone(1318.51, "sine", 0.035, 0.04, 0.14); // E6
+                tone(1567.98, "sine", 0.07, 0.04, 0.15); // G6
+                tone(2093.00, "sine", 0.105, 0.09, 0.16); // C7
                 break;
 
             case "speaking":
@@ -413,3 +429,130 @@ const SoundFX = (function() {
         isMuted: () => isMuted
     };
 })();
+
+/* =========================================================
+   DOODLE CUTE VOICE COMPANION SYNTHESIS ENGINE
+   Speaks back to the user with a bright, cheerful, high-pitched
+   cute companion voice and synchronizes with the mood speech bubble.
+   ========================================================= */
+
+const DoodleVoice = (function() {
+    let synth = typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis : null;
+    let voices = [];
+    let isSpeaking = false;
+
+    function populateVoices() {
+        if (!synth) return;
+        try {
+            voices = synth.getVoices() || [];
+        } catch (e) {
+            voices = [];
+        }
+    }
+
+    if (synth) {
+        populateVoices();
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = populateVoices;
+        }
+    }
+
+    function selectCuteVoice() {
+        if (!voices.length && synth) {
+            populateVoices();
+        }
+        if (!voices.length) return null;
+
+        // Preference order: sweet, friendly, higher-pitch English voices
+        const priorityPatterns = [
+            /Google.*US.*English.*Female/i,
+            /Samantha/i,
+            /Victoria/i,
+            /Karen/i,
+            /Zira/i,
+            /Moira/i,
+            /Tessa/i,
+            /Natural.*Female/i,
+            /Female/i,
+            /en-US/i,
+            /en-GB/i,
+            /en/i
+        ];
+
+        for (const pattern of priorityPatterns) {
+            const found = voices.find(v => pattern.test(v.name) || pattern.test(v.lang));
+            if (found) return found;
+        }
+
+        return voices[0] || null;
+    }
+
+    function speak(text, onStart, onEnd) {
+        if (!text) return;
+
+        // Play cute companion chime first
+        SoundFX.play("cute_chirp");
+
+        if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+            if (onStart) onStart();
+            setTimeout(() => {
+                if (onEnd) onEnd();
+            }, 1200);
+            return;
+        }
+
+        try {
+            // Cancel any previously queued speech
+            synth.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voice = selectCuteVoice();
+            if (voice) {
+                utterance.voice = voice;
+            }
+
+            // Tuned for an adorable, cute, upbeat anime/mascot companion persona
+            utterance.pitch = 1.68;  // High, cute pet pitch
+            utterance.rate = 1.14;   // Slightly brisk and enthusiastic
+            utterance.volume = SoundFX.isMuted() ? 0 : 0.95;
+
+            utterance.onstart = () => {
+                isSpeaking = true;
+                if (onStart) onStart();
+            };
+
+            utterance.onend = () => {
+                isSpeaking = false;
+                if (onEnd) onEnd();
+            };
+
+            utterance.onerror = (e) => {
+                console.warn("Cute voice speech synthesis event:", e);
+                isSpeaking = false;
+                if (onEnd) onEnd();
+            };
+
+            synth.speak(utterance);
+        } catch (err) {
+            console.warn("Unable to speak with speech synthesis:", err);
+            isSpeaking = false;
+            if (onEnd) onEnd();
+        }
+    }
+
+    function cancel() {
+        if (synth) {
+            try {
+                synth.cancel();
+            } catch (e) {}
+        }
+        isSpeaking = false;
+    }
+
+    return {
+        speak: speak,
+        cancel: cancel,
+        isSpeaking: () => isSpeaking
+    };
+})();
+
