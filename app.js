@@ -24,6 +24,13 @@ const voiceStatusBadge = document.getElementById("voiceStatusBadge");
 const hearingDot = document.getElementById("hearingDot");
 const hearingStatusText = document.getElementById("hearingStatusText");
 const liveTranscriptBox = document.getElementById("liveTranscriptBox");
+const voiceSelect = document.getElementById("voiceSelect");
+const voiceSelectedLabel = document.getElementById("voiceSelectedLabel");
+const voiceSpeedSlider = document.getElementById("voiceSpeedSlider");
+const voiceSpeedVal = document.getElementById("voiceSpeedVal");
+const voicePitchSlider = document.getElementById("voicePitchSlider");
+const voicePitchVal = document.getElementById("voicePitchVal");
+const previewVoiceBtn = document.getElementById("previewVoiceBtn");
 const shakeBtn = document.getElementById("shakeBtn");
 const batteryWidget = document.getElementById("batteryWidget");
 const batteryFill = document.getElementById("batteryFill");
@@ -697,6 +704,9 @@ if (powersBtn && powersModal) {
         SoundFX.init();
         powersModal.classList.add("open");
         powersModal.setAttribute("aria-hidden", "false");
+        if (typeof populateVoiceSelector === "function") {
+            populateVoiceSelector();
+        }
     });
 }
 
@@ -821,172 +831,247 @@ function parseVoiceInput(spokenText) {
     const clean = (spokenText || "").toLowerCase().trim();
     if (!clean) return null;
 
-    // Wake word pattern matching start of sentence ("doodle", "doddle", "hey doodle", "ok doddle")
-    const wakeRegex = /^(?:hey\s+|hi\s+|ok\s+|okay\s+|yo\s+|hello\s+)?(?:doodle|doddle|dudle|doodler|doodel|duddle)\b[,\s]*(.*)$/i;
+    // Wake word pattern matching start of phrase: "jarvis", "hey jarvis", "hi jarvis", "ok jarvis", etc.
+    const wakeRegex = /^(?:hey\s+|hi\s+|ok\s+|okay\s+|yo\s+|hello\s+)?(?:jarvis|javis|jarves|travis|doodle|doddle)\b[,\s]*(.*)$/i;
     const match = clean.match(wakeRegex);
 
     if (!match) {
         return {
             hasWakeWord: false,
+            isNameOnly: false,
             raw: clean,
             command: clean
         };
     }
 
+    const remaining = (match[1] || "").trim();
+    // Check if only the name was called (e.g. "Jarvis", "Hey Jarvis!", "Jarvis?")
+    const isNameOnly = !remaining || ["?", "!", ".", ""].includes(remaining);
+
     return {
         hasWakeWord: true,
+        isNameOnly: isNameOnly,
         raw: clean,
-        command: (match[1] || "").trim()
+        command: remaining
     };
 }
 
-function executeVoiceCommand(spokenText, isFromMic = false) {
+// Client-side smart fallback if backend network is unreachable
+function smartClientFallback(queryText) {
+    const clean = (queryText || "").trim();
+    const lower = clean.toLowerCase();
+
+    // Only name or wake word called
+    if (!clean || /^(?:hey\s+|hi\s+|ok\s+|yo\s+|hello\s+)?(?:jarvis|javis|jarves)[?!.]*$/i.test(lower)) {
+        const acks = [
+            "Yes, I am here. How can I help you?",
+            "At your service, sir. What do you need?",
+            "Online and listening. What's on your mind?",
+            "Standing by. How can I assist you?",
+            "Yes, boss? Ready when you are."
+        ];
+        return {
+            reply: acks[Math.floor(Math.random() * acks.length)],
+            bubble: "At your service! ✨",
+            mood: "look_up"
+        };
+    }
+
+    // Stripped query
+    const stripped = lower.replace(/^(?:hey\s+|hi\s+|ok\s+|yo\s+|hello\s+)?(?:jarvis|javis|jarves)\b[,\s]*/i, '').trim() || lower;
+
+    // App launches
+    const openMatch = stripped.match(/^(?:open|launch|start|go to|run|show me)\s+(.+)$/i);
+    if (openMatch) {
+        const app = openMatch[1].trim();
+        const formatted = app.charAt(0).toUpperCase() + app.slice(1);
+        let mood = "excited";
+        if (/youtube/i.test(app)) mood = "boombox";
+        else if (/spotify|music|song/i.test(app)) mood = "boombox";
+        else if (/camera|photo/i.test(app)) mood = "wink";
+        else if (/calc/i.test(app)) mood = "thinking";
+        return {
+            reply: `Opening ${formatted} right now for you.`,
+            bubble: `Opening ${formatted}... 🚀`,
+            mood: mood,
+            app: formatted
+        };
+    }
+
+    // Time & Date
+    if (/time|what time|clock/i.test(stripped)) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return {
+            reply: `The current time is ${timeStr}.`,
+            bubble: `Time: ${timeStr} ⌚`,
+            mood: "cool"
+        };
+    }
+
+    if (/date|what day|today/i.test(stripped)) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+        return {
+            reply: `Today is ${dateStr}.`,
+            bubble: `${dateStr} 📅`,
+            mood: "look_up"
+        };
+    }
+
+    // Math calculation
+    const mathMatch = stripped.match(/(?:what is|calculate|solve|what's)?\s*([0-9\s\+\-\*\/\.\(\)\^xX]+)\s*(?:\?|$)/i);
+    if (mathMatch && mathMatch[1] && /[0-9]/.test(mathMatch[1]) && /[\+\-\*\/\^xX]/.test(mathMatch[1])) {
+        try {
+            const sanitized = mathMatch[1].replace(/x/gi, '*').replace(/\^/g, '**').replace(/[^0-9\+\-\*\/\.\(\)]/g, '');
+            const result = Function(`'use strict'; return (${sanitized})`)();
+            if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+                return {
+                    reply: `That equals ${result}.`,
+                    bubble: `= ${result} 🧮`,
+                    mood: "thinking"
+                };
+            }
+        } catch (e) {}
+    }
+
+    // Identity
+    if (/who are you|what is your name|your name/i.test(stripped)) {
+        return {
+            reply: "I am Jarvis, your digital AI companion. Always online and ready to assist.",
+            bubble: "I am Jarvis! 🤖",
+            mood: "cool"
+        };
+    }
+
+    // Jokes
+    if (/joke|make me laugh|funny/i.test(stripped)) {
+        const jokes = [
+            "Why don't robots ever panic? Because they have nerves of steel!",
+            "Why was the computer cold? It left its Windows open!",
+            "There are 10 types of people: those who understand binary, and those who don't."
+        ];
+        return {
+            reply: jokes[Math.floor(Math.random() * jokes.length)],
+            bubble: "Haha! 😂",
+            mood: "wink"
+        };
+    }
+
+    // Moods
+    if (/sleep|night|tired/i.test(stripped)) {
+        return {
+            reply: "Entering standby mode. Goodnight, sir.",
+            bubble: "Standby... Zzz 💤",
+            mood: "sleep"
+        };
+    }
+
+    if (/party|dance|beat/i.test(stripped)) {
+        return {
+            reply: "Cranking up the party beats! Let's groove.",
+            bubble: "Party Beats! 📻🎶",
+            mood: "boombox"
+        };
+    }
+
+    if (/wake|morning/i.test(stripped)) {
+        return {
+            reply: "Good morning! Jarvis is awake and fully operational.",
+            bubble: "Jarvis is Awake! ☀️",
+            mood: "happy"
+        };
+    }
+
+    if (/love|cute|friend/i.test(stripped)) {
+        return {
+            reply: "Thank you! I am delighted to be your companion.",
+            bubble: "Always here for you! 💖",
+            mood: "love"
+        };
+    }
+
+    return {
+        reply: `I heard ${clean.slice(0, 30)}. I am Jarvis, here to help you.`,
+        bubble: `Jarvis: "${clean.slice(0, 20)}"`,
+        mood: "curious"
+    };
+}
+
+async function askJarvisServer(queryText) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        const res = await fetch("/api/jarvis/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: queryText }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error("Status " + res.status);
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.warn("Using smart client fallback:", err.message);
+        return smartClientFallback(queryText);
+    }
+}
+
+async function executeVoiceCommand(spokenText, isFromMic = false) {
     const parsed = parseVoiceInput(spokenText);
     if (!parsed) return;
 
     SoundFX.init();
 
-    // If coming from live mic and wake word is missing:
-    if (isFromMic && !parsed.hasWakeWord) {
-        if (voiceTestOutput) {
-            voiceTestOutput.innerHTML = `⚠️ <em>Heard "${parsed.raw}". Start with <strong>"Doodle..."</strong> so I know you're calling me!</em>`;
-        }
-        showMoodBubble(`Say "Doodle [command]"! 🐾`, 2200);
-        return;
-    }
+    // 1. If ONLY Jarvis's name is called (e.g. "Jarvis!", "Hey Jarvis", "Jarvis?"):
+    if (parsed.isNameOnly || ["hi", "hello", "hey", "what's up", "listen", "you there", "are you there"].includes(parsed.command)) {
+        const acknowledgments = [
+            "Yes, I am here. How can I help you?",
+            "At your service, sir. What do you need?",
+            "Online and listening. What's on your mind?",
+            "Standing by. How can I assist you?",
+            "Yes, boss? Ready when you are."
+        ];
+        const ack = acknowledgments[Math.floor(Math.random() * acknowledgments.length)];
+        doodleSpeakAndEmote(ack, "At your service! ✨", "look_up");
 
-    const command = parsed.command;
-
-    // 1. If user just called the wake word "Doodle!" / "Hey Doddle":
-    if (!command || ["hi", "hello", "hey", "what's up", "listen", "you there"].includes(command)) {
-        doodleSpeakAndEmote(
-            "Hi! Doodle is listening! Tell me what you'd like me to do!",
-            "Hi! Doodle is listening! 💖",
-            "happy"
-        );
         if (voiceTestOutput) {
-            voiceTestOutput.innerHTML = `✨ <strong>Wake Word Heard!</strong> Doodle is awake and ready for your command.`;
+            voiceTestOutput.innerHTML = `✨ <strong>Jarvis Ready:</strong> <span style="color:#19eaff">Wake name acknowledged ("${spokenText}")</span>`;
         }
         return;
     }
 
-    // 2. Explicit app open triggers: "open X", "launch X", "start X", "go to X"
-    const openPrefixes = ["open ", "launch ", "start ", "go to ", "run ", "show me "];
-    for (const prefix of openPrefixes) {
-        if (command.startsWith(prefix)) {
-            const target = command.substring(prefix.length).trim();
-            const formatted = target.charAt(0).toUpperCase() + target.slice(1);
+    // 2. Any other query or command -> Talk normally and smartly!
+    // Strip wake word if present so the query is clean, or use raw if spoken directly
+    const query = parsed.hasWakeWord ? (parsed.command || parsed.raw) : parsed.raw;
 
-            let cuteReply = `Opening ${formatted} right now for you!`;
-            let cuteBubble = `Opening ${formatted}... 🚀`;
-            let mood = "excited";
+    // Show instant visual listening/thinking feedback
+    showMoodBubble("Thinking... 💭", 1600);
+    playExpression("thinking");
 
-            if (/youtube/i.test(target)) {
-                cuteReply = "Opening YouTube! Have fun watching videos!";
-                cuteBubble = "Opening YouTube... 📺";
-            } else if (/spotify|music|songs/i.test(target)) {
-                cuteReply = "Opening Spotify! Let's get the party grooves going!";
-                cuteBubble = "Opening Spotify... 🎵";
-                mood = "boombox";
-            } else if (/camera|photo/i.test(target)) {
-                cuteReply = "Opening Camera! Say cheese and smile!";
-                cuteBubble = "Opening Camera... 📸";
-                mood = "wink";
-            } else if (/calculator|calc/i.test(target)) {
-                cuteReply = "Opening Calculator! Let's crunch some numbers!";
-                cuteBubble = "Opening Calculator... 🧮";
-                mood = "thinking";
-            } else if (/maps|navigation|directions/i.test(target)) {
-                cuteReply = "Opening Maps! Let's explore together!";
-                cuteBubble = "Opening Maps... 🗺️";
-                mood = "look_up";
-            } else if (/instagram|insta/i.test(target)) {
-                cuteReply = "Opening Instagram! Check out the fun posts!";
-                cuteBubble = "Opening Instagram... 📸";
-            }
-
-            doodleSpeakAndEmote(cuteReply, cuteBubble, mood);
-            if (voiceTestOutput) {
-                voiceTestOutput.innerHTML = `🚀 <strong>App Launch:</strong> <span style="color:#19eaff">Opening ${formatted}</span>`;
-            }
-            return;
-        }
+    if (voiceTestOutput) {
+        voiceTestOutput.innerHTML = `⏳ <em>Jarvis is processing: "${query}"...</em>`;
     }
 
-    // 3. Expressions and Moods
-    if (command.includes("sleep") || command.includes("night") || command.includes("tired") || command.includes("nap")) {
+    // Fetch intelligent response from Jarvis AI backend (with smart client fallback)
+    const result = await askJarvisServer(query);
+
+    if (result && result.reply) {
         doodleSpeakAndEmote(
-            "Goodnight! Doodle is going to sleep now. Sweet dreams! Zzz...",
-            "Sleeping... Zzz 💤",
-            "sleep"
+            result.reply,
+            result.bubble || result.reply,
+            result.mood || "happy"
         );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💤 <strong>Mood:</strong> <span style="color:#6ee7b7">Sleeping Eyes (Goodnight!)</span>`;
-    } else if (command.includes("party") || command.includes("music") || command.includes("dance") || command.includes("beats")) {
-        doodleSpeakAndEmote(
-            "Yay! Party time, let's dance to the beats!",
-            "Party Beats! 📻🎶",
-            "boombox"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `📻 <strong>Mood:</strong> <span style="color:#f43f5e">Party Boombox Beats</span>`;
-    } else if (command.includes("wake") || command.includes("morning") || command.includes("up")) {
-        doodleSpeakAndEmote(
-            "Good morning! Doodle is wide awake and ready to play!",
-            "Doodle is awake! ☀️",
-            "happy"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `✨ <strong>Mood:</strong> <span style="color:#38ef7d">Wide Awake & Happy</span>`;
-    } else if (command.includes("love") || command.includes("cute") || command.includes("sweet") || command.includes("friend")) {
-        doodleSpeakAndEmote(
-            "Aww, you are the sweetest! Doodle loves you so much too!",
-            "I love you too! 💖",
-            "love"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💖 <strong>Mood:</strong> <span style="color:#ff4d8d">Heart Pupils (Love)</span>`;
-    } else if (command.includes("shock") || command.includes("omg") || command.includes("wow") || command.includes("scared")) {
-        doodleSpeakAndEmote(
-            "Whoa! That gave Doodle quite a jump!",
-            "Whoa surprise! ⚡",
-            "shocked"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `⚡ <strong>Mood:</strong> <span style="color:#fbbf24">Surprise Dialation</span>`;
-    } else if (command.includes("wink") || command.includes("playful")) {
-        doodleSpeakAndEmote(
-            "Wink wink! Doodle is always your playful buddy!",
-            "Wink! 😉",
-            "wink"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `😉 <strong>Mood:</strong> <span style="color:#19eaff">Playful Wink</span>`;
-    } else if (command.includes("angry") || command.includes("mad") || command.includes("grumpy")) {
-        doodleSpeakAndEmote(
-            "Hmph! Doodle is making a grumpy little face now!",
-            "Grumpy doodle! 💢",
-            "angry"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💢 <strong>Mood:</strong> <span style="color:#ef4444">Grumpy Angled Eyes</span>`;
-    } else if (command.includes("dizzy") || command.includes("shake") || command.includes("spin")) {
-        doodleSpeakAndEmote(
-            "Whoaa, everything is spinning around!",
-            "Whoaa dizzy! 💫",
-            "dizzy"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `💫 <strong>Mood:</strong> <span style="color:#f472b6">Dizzy Spiral Shake</span>`;
-    } else if (command.includes("cool") || command.includes("glasses") || command.includes("specs")) {
-        doodleSpeakAndEmote(
-            "Check out my cyber specs! Look how cool Doodle looks!",
-            "Looking cool! 😎",
-            "cool"
-        );
-        if (voiceTestOutput) voiceTestOutput.innerHTML = `😎 <strong>Mood:</strong> <span style="color:#19eaff">Cool Specs</span>`;
-    } else {
-        // Fallback app match or curious response
-        const formatted = command.charAt(0).toUpperCase() + command.slice(1);
-        doodleSpeakAndEmote(
-            `Doodle heard ${formatted}! Opening ${formatted} for you!`,
-            `Opening ${formatted}... 🚀`,
-            "excited"
-        );
+
         if (voiceTestOutput) {
-            voiceTestOutput.innerHTML = `🚀 <strong>Action:</strong> <span style="color:#19eaff">Opening ${formatted}</span>`;
+            if (result.app) {
+                voiceTestOutput.innerHTML = `🚀 <strong>App Launched:</strong> <span style="color:#19eaff">${result.app}</span> &bull; <em>"${result.reply}"</em>`;
+            } else {
+                voiceTestOutput.innerHTML = `💬 <strong>Jarvis:</strong> <span style="color:#38ef7d">"${result.reply}"</span>`;
+            }
         }
     }
 }
@@ -1086,12 +1171,12 @@ function toggleMic(desiredState) {
         SoundFX.play("listen_start");
         updateMicUI(true);
         if (liveTranscriptBox) {
-            liveTranscriptBox.innerHTML = `<span class="transcript-placeholder">Listening for 'Doodle ...'</span>`;
+            liveTranscriptBox.innerHTML = `<span class="transcript-placeholder">Listening... Call "Jarvis" or ask anything!</span>`;
         }
         doodleSpeakAndEmote(
-            "Doodle is listening! Say Doodle followed by your command!",
-            "Listening... Say 'Doodle [command]'",
-            "happy"
+            "Jarvis is online and listening. How may I assist you, sir?",
+            "Jarvis listening... ✨",
+            "look_up"
         );
         restartMicSession();
     } else {
@@ -1135,6 +1220,119 @@ if (testVoiceBtn && voiceTestInput) {
                 executeVoiceCommand(text, false);
             }
         }
+    });
+}
+
+function populateVoiceSelector() {
+    if (!voiceSelect) return;
+    const voices = JarvisVoice.getVoices();
+    if (!voices || !voices.length) {
+        JarvisVoice.populateVoices();
+    }
+    const currentVoices = JarvisVoice.getVoices();
+    if (!currentVoices || !currentVoices.length) return;
+
+    const selectedVoice = JarvisVoice.getSelectedVoice();
+    const currentSelectedURI = selectedVoice ? selectedVoice.voiceURI : "";
+
+    voiceSelect.innerHTML = "";
+
+    // Auto Best Male Option
+    const autoOpt = document.createElement("option");
+    autoOpt.value = "";
+    autoOpt.textContent = `⭐ Auto Best Male (${selectedVoice ? selectedVoice.name : "Detected"})`;
+    voiceSelect.appendChild(autoOpt);
+
+    const maleGroup = document.createElement("optgroup");
+    maleGroup.label = "👔 Recommended Male Voices";
+
+    const otherGroup = document.createElement("optgroup");
+    otherGroup.label = "🌐 Other System Voices";
+
+    let maleCount = 0;
+    currentVoices.forEach(v => {
+        const isMale = JarvisVoice.isMaleVoice(v);
+        const opt = document.createElement("option");
+        opt.value = v.voiceURI;
+        const prefix = isMale ? "👔 " : "";
+        opt.textContent = `${prefix}${v.name} (${v.lang})`;
+
+        if (isMale) {
+            maleGroup.appendChild(opt);
+            maleCount++;
+        } else {
+            otherGroup.appendChild(opt);
+        }
+    });
+
+    if (maleCount > 0) {
+        voiceSelect.appendChild(maleGroup);
+    }
+    voiceSelect.appendChild(otherGroup);
+
+    if (currentSelectedURI) {
+        voiceSelect.value = currentSelectedURI;
+    } else {
+        voiceSelect.value = "";
+    }
+
+    if (voiceSelectedLabel && selectedVoice) {
+        voiceSelectedLabel.textContent = JarvisVoice.isMaleVoice(selectedVoice) ? "Male Active 👔" : "Selected";
+    }
+}
+
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        JarvisVoice.populateVoices();
+        populateVoiceSelector();
+    };
+    setTimeout(() => {
+        JarvisVoice.populateVoices();
+        populateVoiceSelector();
+    }, 400);
+}
+
+if (voiceSelect) {
+    voiceSelect.addEventListener("change", () => {
+        const uri = voiceSelect.value;
+        JarvisVoice.setVoiceURI(uri);
+        const current = JarvisVoice.getSelectedVoice();
+        if (voiceSelectedLabel && current) {
+            voiceSelectedLabel.textContent = JarvisVoice.isMaleVoice(current) ? "Male Active 👔" : "Selected";
+        }
+    });
+}
+
+if (voiceSpeedSlider && voiceSpeedVal) {
+    voiceSpeedSlider.addEventListener("input", () => {
+        const rate = parseFloat(voiceSpeedSlider.value);
+        JarvisVoice.setRate(rate);
+        let speedDesc = "(Natural)";
+        if (rate >= 1.35) speedDesc = "(Brisk)";
+        else if (rate > 1.1) speedDesc = "(Active)";
+        else if (rate < 0.85) speedDesc = "(Slow)";
+        voiceSpeedVal.textContent = `${rate.toFixed(2)}x ${speedDesc}`;
+    });
+}
+
+if (voicePitchSlider && voicePitchVal) {
+    voicePitchSlider.addEventListener("input", () => {
+        const pitch = parseFloat(voicePitchSlider.value);
+        JarvisVoice.setPitch(pitch);
+        let toneDesc = "(Deep Male)";
+        if (pitch < 0.8) toneDesc = "(Deep Baritone)";
+        else if (pitch > 1.05) toneDesc = "(Bright Tone)";
+        voicePitchVal.textContent = `${pitch.toFixed(2)}x ${toneDesc}`;
+    });
+}
+
+if (previewVoiceBtn) {
+    previewVoiceBtn.addEventListener("click", () => {
+        doodleSpeakAndEmote(
+            "Jarvis systems fully operational. Ready for your command, sir.",
+            "Jarvis is Online! ⚡",
+            "cool"
+        );
     });
 }
 

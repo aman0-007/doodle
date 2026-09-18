@@ -431,15 +431,18 @@ const SoundFX = (function() {
 })();
 
 /* =========================================================
-   DOODLE CUTE VOICE COMPANION SYNTHESIS ENGINE
-   Speaks back to the user with a bright, cheerful, high-pitched
-   cute companion voice and synchronizes with the mood speech bubble.
+   JARVIS VOICE ASSISTANT SYNTHESIS ENGINE
+   Clear, natural AI assistant persona with crystal-clear pronunciation.
+   Calibrated natural tone (1.18x) and brisk conversational speed (1.40x).
    ========================================================= */
 
-const DoodleVoice = (function() {
+const JarvisVoice = (function() {
     let synth = typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis : null;
     let voices = [];
     let isSpeaking = false;
+    let preferredVoiceURI = "";
+    let voiceRate = 1.40;   // 1.40x conversational speed as requested
+    let voicePitch = 0.88;  // Natural, sophisticated male pitch
 
     function populateVoices() {
         if (!synth) return;
@@ -453,36 +456,112 @@ const DoodleVoice = (function() {
     if (synth) {
         populateVoices();
         if (synth.onvoiceschanged !== undefined) {
-            synth.onvoiceschanged = populateVoices;
+            synth.onvoiceschanged = () => {
+                populateVoices();
+            };
         }
     }
 
-    function selectCuteVoice() {
+    function isFemaleVoice(v) {
+        if (!v) return false;
+        const name = (v.name || "").toLowerCase();
+        const uri = (v.voiceURI || "").toLowerCase();
+        const combined = `${name} ${uri}`.toLowerCase();
+
+        // If explicitly tagged male, it is NOT female
+        if (/\b(male|guy|man|boy)\b/i.test(name)) return false;
+
+        // Explicit female tags
+        if (/\b(female|woman|girl|lady)\b/i.test(combined)) return true;
+
+        // "Google US English" is female in Chrome!
+        if (name === "google us english" || uri.includes("google us english") || name.startsWith("google us english")) {
+            return true;
+        }
+        if (name.includes("uk english female") || name.includes("us english female")) {
+            return true;
+        }
+
+        const femaleNames = [
+            "samantha", "victoria", "karen", "zira", "moira", "tessa", "fiona", "susan",
+            "kathy", "linda", "heather", "alice", "ava", "serena", "yuri", "helena", "zuzana",
+            "anna", "elena", "stephanie", "sarah", "julie", "jenny", "aria", "ana", "hazel",
+            "catherine", "veena", "neerja", "swara", "ioana", "amelie", "marlene", "vicki",
+            "kyoko", "sin-ji", "ting-ting", "yuna", "paulina", "monica", "luciana", "agnes", "melina"
+        ];
+        return femaleNames.some(fn => combined.includes(fn));
+    }
+
+    function isMaleVoice(v) {
+        if (!v) return false;
+        if (isFemaleVoice(v)) return false;
+        const name = (v.name || "").toLowerCase();
+        const uri = (v.voiceURI || "").toLowerCase();
+        const combined = `${name} ${uri}`;
+
+        if (/\b(male|guy|man|boy)\b/i.test(combined)) return true;
+
+        const maleNames = [
+            "daniel", "david", "guy", "alex", "fred", "ralph", "tom", "george", "oliver",
+            "arthur", "thomas", "ryan", "christopher", "eric", "ravi", "james", "richard",
+            "mark", "rishi", "prabhat", "lee", "nathan", "aaron", "gordon", "sean", "liam"
+        ];
+        return maleNames.some(mn => combined.includes(mn));
+    }
+
+    function selectJarvisVoice() {
         if (!voices.length && synth) {
             populateVoices();
         }
         if (!voices.length) return null;
 
-        // Preference order: sweet, friendly, higher-pitch English voices
-        const priorityPatterns = [
-            /Google.*US.*English.*Female/i,
-            /Samantha/i,
-            /Victoria/i,
-            /Karen/i,
-            /Zira/i,
-            /Moira/i,
-            /Tessa/i,
-            /Natural.*Female/i,
-            /Female/i,
-            /en-US/i,
-            /en-GB/i,
-            /en/i
+        if (preferredVoiceURI) {
+            const manual = voices.find(v => v.voiceURI === preferredVoiceURI || v.name === preferredVoiceURI);
+            if (manual) return manual;
+        }
+
+        // 1. High priority: British & US Male voices (ideal for Jarvis persona)
+        const malePatterns = [
+            /Google.*UK.*English.*Male/i,
+            /Google.*US.*English.*Male/i,
+            /Daniel/i,             // British Jarvis voice on Mac/iOS
+            /Microsoft.*Guy/i,     // Natural warm male voice on Windows/Edge
+            /Microsoft.*David/i,   // Windows standard male
+            /Microsoft.*George/i,  // Windows UK male
+            /Microsoft.*Mark/i,
+            /Microsoft.*Ryan/i,
+            /Microsoft.*Christopher/i,
+            /Microsoft.*Eric/i,
+            /Microsoft.*Ravi/i,
+            /Oliver/i,
+            /George/i,
+            /Arthur/i,
+            /Thomas/i,
+            /Alex/i,               // Standard Apple male
+            /Fred/i,
+            /\bMale\b/i            // Any voice explicitly tagged Male
         ];
 
-        for (const pattern of priorityPatterns) {
-            const found = voices.find(v => pattern.test(v.name) || pattern.test(v.lang));
-            if (found) return found;
+        for (const pattern of malePatterns) {
+            const match = voices.find(v => (pattern.test(v.name) || pattern.test(v.voiceURI)) && !isFemaleVoice(v));
+            if (match) return match;
         }
+
+        // 2. Any voice identified as male with English locale
+        const anyMaleEnglish = voices.find(v => isMaleVoice(v) && /^en/i.test(v.lang));
+        if (anyMaleEnglish) return anyMaleEnglish;
+
+        // 3. Any voice identified as male
+        const anyMale = voices.find(v => isMaleVoice(v));
+        if (anyMale) return anyMale;
+
+        // 4. Any English voice that is NOT female
+        const nonFemaleEnglish = voices.find(v => /^en/i.test(v.lang) && !isFemaleVoice(v));
+        if (nonFemaleEnglish) return nonFemaleEnglish;
+
+        // 5. Any voice that is NOT female
+        const nonFemaleAny = voices.find(v => !isFemaleVoice(v));
+        if (nonFemaleAny) return nonFemaleAny;
 
         return voices[0] || null;
     }
@@ -490,51 +569,75 @@ const DoodleVoice = (function() {
     function speak(text, onStart, onEnd) {
         if (!text) return;
 
-        // Play cute companion chime first
+        // Play subtle perk chirp before talking
         SoundFX.play("cute_chirp");
 
         if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
             if (onStart) onStart();
             setTimeout(() => {
                 if (onEnd) onEnd();
-            }, 1200);
+            }, 1000);
             return;
         }
 
         try {
-            // Cancel any previously queued speech
+            // Unstick Chrome speech synthesis if paused
+            if (synth.paused) {
+                synth.resume();
+            }
             synth.cancel();
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voice = selectCuteVoice();
-            if (voice) {
-                utterance.voice = voice;
-            }
+            // Safe micro-delay prevents Chrome utterance cancellation bug
+            setTimeout(() => {
+                try {
+                    const utterance = new SpeechSynthesisUtterance(text);
 
-            // Tuned for an adorable, cute, upbeat anime/mascot companion persona
-            utterance.pitch = 1.68;  // High, cute pet pitch
-            utterance.rate = 1.14;   // Slightly brisk and enthusiastic
-            utterance.volume = SoundFX.isMuted() ? 0 : 0.95;
+                    const voice = selectJarvisVoice();
+                    if (voice) {
+                        utterance.voice = voice;
+                        utterance.lang = voice.lang || "en-US";
+                    } else {
+                        utterance.lang = "en-US";
+                    }
 
-            utterance.onstart = () => {
-                isSpeaking = true;
-                if (onStart) onStart();
-            };
+                    // If the available voice is detected as female/generic, shift pitch down to a masculine formant
+                    let effectivePitch = voicePitch;
+                    if (voice && isFemaleVoice(voice)) {
+                        effectivePitch = Math.min(voicePitch, 0.74);
+                    }
 
-            utterance.onend = () => {
-                isSpeaking = false;
-                if (onEnd) onEnd();
-            };
+                    // Sophisticated natural male assistant pitch
+                    utterance.pitch = Math.min(Math.max(effectivePitch, 0.5), 1.3);
+                    // Brisk, crisp conversational rate (1.40x default)
+                    utterance.rate = Math.min(Math.max(voiceRate, 0.5), 2.0);
+                    utterance.volume = SoundFX.isMuted() ? 0 : 0.95;
 
-            utterance.onerror = (e) => {
-                console.warn("Cute voice speech synthesis event:", e);
-                isSpeaking = false;
-                if (onEnd) onEnd();
-            };
+                    utterance.onstart = () => {
+                        isSpeaking = true;
+                        if (onStart) onStart();
+                    };
 
-            synth.speak(utterance);
+                    utterance.onend = () => {
+                        isSpeaking = false;
+                        if (onEnd) onEnd();
+                    };
+
+                    utterance.onerror = (e) => {
+                        console.warn("Speech synthesis notice:", e);
+                        isSpeaking = false;
+                        if (onEnd) onEnd();
+                    };
+
+                    synth.speak(utterance);
+                } catch (innerErr) {
+                    console.warn("Speech speak call failed:", innerErr);
+                    isSpeaking = false;
+                    if (onEnd) onEnd();
+                }
+            }, 25);
+
         } catch (err) {
-            console.warn("Unable to speak with speech synthesis:", err);
+            console.warn("Unable to trigger speech synthesis:", err);
             isSpeaking = false;
             if (onEnd) onEnd();
         }
@@ -549,10 +652,56 @@ const DoodleVoice = (function() {
         isSpeaking = false;
     }
 
+    function setRate(newRate) {
+        const val = parseFloat(newRate);
+        if (!isNaN(val) && val >= 0.5 && val <= 1.8) {
+            voiceRate = val;
+        }
+    }
+
+    function setPitch(newPitch) {
+        const val = parseFloat(newPitch);
+        if (!isNaN(val) && val >= 0.5 && val <= 1.5) {
+            voicePitch = val;
+        }
+    }
+
+    function setVoiceURI(uri) {
+        preferredVoiceURI = uri || "";
+    }
+
+    function getSettings() {
+        const selected = selectJarvisVoice();
+        return {
+            rate: voiceRate,
+            pitch: voicePitch,
+            selectedVoice: selected?.name || "System Default",
+            selectedVoiceURI: selected?.voiceURI || "",
+            isMale: selected ? isMaleVoice(selected) : false,
+            availableVoices: voices
+        };
+    }
+
     return {
         speak: speak,
         cancel: cancel,
+        setRate: setRate,
+        setPitch: setPitch,
+        setVoiceURI: setVoiceURI,
+        getSettings: getSettings,
+        getVoices: () => voices,
+        populateVoices: populateVoices,
+        getSelectedVoice: selectJarvisVoice,
+        isMaleVoice: isMaleVoice,
+        isFemaleVoice: isFemaleVoice,
         isSpeaking: () => isSpeaking
     };
 })();
+
+// Provide both JarvisVoice and backward-compatible DoodleVoice
+const DoodleVoice = JarvisVoice;
+if (typeof window !== "undefined") {
+    window.JarvisVoice = JarvisVoice;
+    window.DoodleVoice = JarvisVoice;
+}
 

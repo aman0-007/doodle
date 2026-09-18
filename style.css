@@ -1532,5 +1532,132 @@ html, body {
     }
 }
 
+/* Voice speed and cute pitch tuning strip */
+.voice-tuning-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    flex-wrap: wrap;
+}
+
+.voice-select-dropdown {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.95);
+    color: #f1f5f9;
+    border: 1px solid rgba(25, 234, 255, 0.28);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.voice-select-dropdown:hover, .voice-select-dropdown:focus {
+    border-color: #19eaff;
+}
+
+.voice-select-dropdown option {
+    background: #0f172a;
+    color: #f1f5f9;
+}
+
+.voice-tuning-item {
+    flex: 1 1 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.voice-tuning-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.voice-tuning-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.voice-tuning-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: #38ef7d;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.voice-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.voice-slider:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.voice-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #38ef7d;
+    box-shadow: 0 0 8px rgba(56, 239, 125, 0.6);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.voice-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.preview-voice-btn {
+    align-self: flex-end;
+    padding: 6px 12px;
+    background: rgba(56, 239, 125, 0.15);
+    border: 1px solid rgba(56, 239, 125, 0.35);
+    border-radius: 7px;
+    color: #38ef7d;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+
+.preview-voice-btn:hover {
+    background: rgba(56, 239, 125, 0.28);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+}
+
+.preview-voice-btn:active {
+    transform: translateY(0);
+}
+
+
 
 

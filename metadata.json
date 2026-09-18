@@ -1,6 +1,6 @@
 {
-  "name": "Mini Doodle",
-  "description": "Interactive animated pixel doodle pet with expressive glowing eyes that react to touches, gestures, battery, and voice commands to launch any app.",
+  "name": "Jarvis",
+  "description": "Interactive animated AI digital companion with expressive glowing eyes that react to touches, gestures, battery, and voice commands with intelligent conversational AI.",
   "requestFramePermissions": [
     "microphone"
   ],

@@ -41,12 +41,30 @@ class EyeVoiceListener(
     }
 
     init {
-        // Initialize Android TextToSpeech with cute persona parameters
+        // Initialize Android TextToSpeech with natural male Jarvis voice persona
         textToSpeech = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 textToSpeech?.language = Locale.US
-                textToSpeech?.setPitch(1.68f)      // High, cute pet pitch
-                textToSpeech?.setSpeechRate(1.14f)  // Enthusiastic brisk pace
+                textToSpeech?.setPitch(0.88f)       // Deep, natural masculine tone
+                textToSpeech?.setSpeechRate(1.40f)  // 1.40x conversational pace as requested
+
+                try {
+                    val availableVoices = textToSpeech?.voices
+                    if (!availableVoices.isNullOrEmpty()) {
+                        val maleVoice = availableVoices.find { voice ->
+                            val name = voice.name.lowercase(Locale.ROOT)
+                            val isEn = voice.locale.language.startsWith("en", ignoreCase = true)
+                            isEn && (name.contains("male") || name.contains("man") || name.contains("guy")) &&
+                                !name.contains("female")
+                        } ?: availableVoices.find { voice ->
+                            val name = voice.name.lowercase(Locale.ROOT)
+                            voice.locale.language.startsWith("en", ignoreCase = true) && !name.contains("female")
+                        }
+                        if (maleVoice != null) {
+                            textToSpeech?.voice = maleVoice
+                        }
+                    }
+                } catch (e: Exception) {}
             }
         }
     }
