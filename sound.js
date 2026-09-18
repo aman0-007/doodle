@@ -441,13 +441,56 @@ const JarvisVoice = (function() {
     let voices = [];
     let isSpeaking = false;
     let preferredVoiceURI = "";
-    let voiceRate = 1.40;   // 1.40x conversational speed as requested
-    let voicePitch = 0.88;  // Natural, sophisticated male pitch
+    try {
+        preferredVoiceURI = localStorage.getItem("jarvis_voice_uri") || "";
+        // Purge old cached robotic voice URIs (e.g. SAPI5 David Desktop or espeak)
+        if (preferredVoiceURI && (/david/i.test(preferredVoiceURI) || /desktop/i.test(preferredVoiceURI) || /espeak/i.test(preferredVoiceURI))) {
+            localStorage.removeItem("jarvis_voice_uri");
+            preferredVoiceURI = "";
+        }
+    } catch (e) {}
+
+    // Studio-clear natural human settings: strictly 1.0x native pitch to eliminate time-domain resampler distortion
+    let voiceRate = 1.0;
+    let voicePitch = 1.0;
+
+    const VOICE_PRESETS = {
+        clear_british: { key: "clear_british", label: "Jarvis Classic (Clear British)", rate: 1.0, pitch: 1.0 },
+        natural_male: { key: "natural_male", label: "Natural Conversational (US Male)", rate: 1.0, pitch: 1.0 },
+        articulate_pro: { key: "articulate_pro", label: "Clear Executive Male", rate: 1.04, pitch: 1.0 },
+        warm_calm: { key: "warm_calm", label: "Warm & Crisp Male", rate: 0.96, pitch: 1.0 }
+    };
+
+    // Clean text before sending to speech synthesis to eliminate robotic reading of emojis, markdown, and symbols
+    function cleanSpokenText(raw) {
+        if (!raw) return "";
+        let t = String(raw);
+        // Remove markdown formatting like **bold**, *italic*, # headings, `code`, ~strike~
+        t = t.replace(/[*_#`~>]/g, " ");
+        // Remove emojis and non-standard unicode symbols which browsers read aloud as "grinning face"
+        t = t.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, " ");
+        // Remove URLs
+        t = t.replace(/https?:\/\/\S+/gi, "");
+        // Remove system tags
+        t = t.replace(/\[(?:mood|open|action|suggest):[^\]]+\]/gi, "");
+        // Expand symbols to spoken words
+        t = t.replace(/&/g, " and ")
+             .replace(/%/g, " percent ")
+             .replace(/=/g, " equals ")
+             .replace(/\+/g, " plus ")
+             .replace(/@/g, " at ");
+        // Normalize whitespace and punctuation
+        t = t.replace(/\s+/g, " ").trim();
+        return t;
+    }
 
     function populateVoices() {
         if (!synth) return;
         try {
-            voices = synth.getVoices() || [];
+            const list = synth.getVoices() || [];
+            if (list.length) {
+                voices = list;
+            }
         } catch (e) {
             voices = [];
         }
@@ -460,8 +503,32 @@ const JarvisVoice = (function() {
                 populateVoices();
             };
         }
+        // Polling retry ensures voices load in asynchronous Chromium / WebKit environments
+        let pollCount = 0;
+        const voicePollTimer = setInterval(() => {
+            populateVoices();
+            pollCount++;
+            if (voices.length > 0 || pollCount > 30) {
+                clearInterval(voicePollTimer);
+            }
+        }, 120);
     }
 
+    // Exclude old novelty / robotic cyborg voices that sound metallic or distorted
+    function isRoboticVoice(v) {
+        if (!v) return false;
+        const combined = `${v.name || ""} ${v.voiceURI || ""}`.toLowerCase();
+        const roboticKeywords = [
+            "david desktop", "desktop", "sapi", "espeak", "mbrola", "klatt",
+            "fred", "whisper", "zarvox", "trinoids", "cellos", "bad news",
+            "bells", "boing", "bubbles", "deranged", "hysterical", "pipe organ",
+            "albert", "junior", "ralph", "sin-ji", "fester", "wobble", "robot",
+            "sam", "croak", "eddie"
+        ];
+        return roboticKeywords.some(rk => combined.includes(rk));
+    }
+
+    // Comprehensive rejection filter for all female voices and aliases
     function isFemaleVoice(v) {
         if (!v) return false;
         const name = (v.name || "").toLowerCase();
@@ -469,44 +536,51 @@ const JarvisVoice = (function() {
         const combined = `${name} ${uri}`.toLowerCase();
 
         // If explicitly tagged male, it is NOT female
-        if (/\b(male|guy|man|boy)\b/i.test(name)) return false;
+        if (/\b(male|guy|man|boy)\b/i.test(name) || uri.includes("#male")) return false;
 
-        // Explicit female tags
-        if (/\b(female|woman|girl|lady)\b/i.test(combined)) return true;
+        // Explicit female tags in name or URI
+        if (/\b(female|woman|girl|lady)\b/i.test(combined) || uri.includes("#female")) return true;
 
         // "Google US English" is female in Chrome!
         if (name === "google us english" || uri.includes("google us english") || name.startsWith("google us english")) {
             return true;
         }
-        if (name.includes("uk english female") || name.includes("us english female")) {
+        if (name.includes("uk english female") || name.includes("us english female") || name.includes("australian english female")) {
             return true;
         }
 
-        const femaleNames = [
+        const femaleKeywords = [
             "samantha", "victoria", "karen", "zira", "moira", "tessa", "fiona", "susan",
             "kathy", "linda", "heather", "alice", "ava", "serena", "yuri", "helena", "zuzana",
             "anna", "elena", "stephanie", "sarah", "julie", "jenny", "aria", "ana", "hazel",
             "catherine", "veena", "neerja", "swara", "ioana", "amelie", "marlene", "vicki",
-            "kyoko", "sin-ji", "ting-ting", "yuna", "paulina", "monica", "luciana", "agnes", "melina"
+            "kyoko", "sin-ji", "ting-ting", "yuna", "paulina", "monica", "luciana", "agnes",
+            "melina", "cortana", "siri", "nora", "heera", "sangeeta", "ayumi", "haruka", "hina",
+            "xiaoxiao", "yaoyao", "en-us-x-sfg#female", "en-us-x-tpf"
         ];
-        return femaleNames.some(fn => combined.includes(fn));
+        return femaleKeywords.some(fn => combined.includes(fn));
     }
 
+    // Comprehensive identification for clear male voices
     function isMaleVoice(v) {
         if (!v) return false;
+        if (isRoboticVoice(v)) return false;
         if (isFemaleVoice(v)) return false;
         const name = (v.name || "").toLowerCase();
         const uri = (v.voiceURI || "").toLowerCase();
         const combined = `${name} ${uri}`;
 
-        if (/\b(male|guy|man|boy)\b/i.test(combined)) return true;
+        if (/\b(male|guy|man|boy)\b/i.test(combined) || uri.includes("#male")) return true;
 
-        const maleNames = [
-            "daniel", "david", "guy", "alex", "fred", "ralph", "tom", "george", "oliver",
-            "arthur", "thomas", "ryan", "christopher", "eric", "ravi", "james", "richard",
-            "mark", "rishi", "prabhat", "lee", "nathan", "aaron", "gordon", "sean", "liam"
+        const maleKeywords = [
+            "daniel", "guy", "ryan", "george", "alex", "oliver",
+            "arthur", "thomas", "christopher", "eric", "ravi", "james", "richard",
+            "mark", "rishi", "prabhat", "lee", "nathan", "aaron", "gordon", "sean", "liam",
+            "brian", "michael", "john", "paul", "steven", "charles", "robert", "edward",
+            "william", "matthew", "anthony", "joshua", "andrew", "kevin", "jason", "jeff",
+            "justin", "tim", "steve", "frank"
         ];
-        return maleNames.some(mn => combined.includes(mn));
+        return maleKeywords.some(mn => combined.includes(mn));
     }
 
     function selectJarvisVoice() {
@@ -515,84 +589,136 @@ const JarvisVoice = (function() {
         }
         if (!voices.length) return null;
 
+        // User explicit choice from UI (ensure it's not a robotic voice)
         if (preferredVoiceURI) {
-            const manual = voices.find(v => v.voiceURI === preferredVoiceURI || v.name === preferredVoiceURI);
+            const manual = voices.find(v => (v.voiceURI === preferredVoiceURI || v.name === preferredVoiceURI) && !isRoboticVoice(v));
             if (manual) return manual;
         }
 
-        // 1. High priority: British & US Male voices (ideal for Jarvis persona)
-        const malePatterns = [
+        // 1. Highest tier: Modern High-Definition Natural Neural Male voices
+        const naturalStudioMalePatterns = [
+            /Microsoft.*Guy.*Online.*Natural/i,
+            /Microsoft.*Ryan.*Online.*Natural/i,
+            /Microsoft.*Christopher.*Online.*Natural/i,
+            /Microsoft.*Eric.*Online.*Natural/i,
+            /Microsoft.*Brian.*Online.*Natural/i,
+            /Microsoft.*George.*Online.*Natural/i,
             /Google.*UK.*English.*Male/i,
-            /Google.*US.*English.*Male/i,
-            /Daniel/i,             // British Jarvis voice on Mac/iOS
-            /Microsoft.*Guy/i,     // Natural warm male voice on Windows/Edge
-            /Microsoft.*David/i,   // Windows standard male
-            /Microsoft.*George/i,  // Windows UK male
-            /Microsoft.*Mark/i,
-            /Microsoft.*Ryan/i,
-            /Microsoft.*Christopher/i,
-            /Microsoft.*Eric/i,
-            /Microsoft.*Ravi/i,
+            /Daniel.*Enhanced/i,
+            /Daniel/i,             // British classic Jarvis voice
+            /Oliver.*Enhanced/i,
             /Oliver/i,
-            /George/i,
+            /Evan.*Enhanced/i,
+            /Nathan.*Enhanced/i,
+            /Alex/i,               // Crystal-clear standard Apple voice
             /Arthur/i,
             /Thomas/i,
-            /Alex/i,               // Standard Apple male
-            /Fred/i,
-            /\bMale\b/i            // Any voice explicitly tagged Male
+            /\bNatural.*Male\b/i,
+            /\bOnline.*Natural\b/i
         ];
 
-        for (const pattern of malePatterns) {
-            const match = voices.find(v => (pattern.test(v.name) || pattern.test(v.voiceURI)) && !isFemaleVoice(v));
+        for (const pattern of naturalStudioMalePatterns) {
+            const match = voices.find(v => (pattern.test(v.name) || pattern.test(v.voiceURI)) && !isFemaleVoice(v) && !isRoboticVoice(v));
             if (match) return match;
         }
 
-        // 2. Any voice identified as male with English locale
-        const anyMaleEnglish = voices.find(v => isMaleVoice(v) && /^en/i.test(v.lang));
+        // 2. Any English voice identified as clear male
+        const anyMaleEnglish = voices.find(v => isMaleVoice(v) && /^en/i.test(v.lang) && !isRoboticVoice(v));
         if (anyMaleEnglish) return anyMaleEnglish;
 
         // 3. Any voice identified as male
-        const anyMale = voices.find(v => isMaleVoice(v));
+        const anyMale = voices.find(v => isMaleVoice(v) && !isRoboticVoice(v));
         if (anyMale) return anyMale;
 
-        // 4. Any English voice that is NOT female
-        const nonFemaleEnglish = voices.find(v => /^en/i.test(v.lang) && !isFemaleVoice(v));
+        // 4. Any English voice that is NOT female and NOT robotic
+        const nonFemaleEnglish = voices.find(v => /^en/i.test(v.lang) && !isFemaleVoice(v) && !isRoboticVoice(v));
         if (nonFemaleEnglish) return nonFemaleEnglish;
 
-        // 5. Any voice that is NOT female
-        const nonFemaleAny = voices.find(v => !isFemaleVoice(v));
-        if (nonFemaleAny) return nonFemaleAny;
-
-        return voices[0] || null;
+        return voices.find(v => !isRoboticVoice(v)) || voices[0] || null;
     }
 
-    function speak(text, onStart, onEnd) {
-        if (!text) return;
+    // Studio Neural Audio playback engine (Web Audio API 24kHz PCM linear decoding)
+    let studioAudioCtx = null;
+    let currentAudioSource = null;
 
-        // Play subtle perk chirp before talking
-        SoundFX.play("cute_chirp");
+    function stopCurrentAudio() {
+        if (currentAudioSource) {
+            try { currentAudioSource.stop(); } catch (e) {}
+            currentAudioSource = null;
+        }
+        if (synth) {
+            try { synth.cancel(); } catch (e) {}
+        }
+        isSpeaking = false;
+    }
 
+    function playPCM24k(base64Data, onStart, onEnd) {
+        try {
+            stopCurrentAudio();
+            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtxClass) return false;
+
+            if (!studioAudioCtx || studioAudioCtx.state === "closed") {
+                studioAudioCtx = new AudioCtxClass({ sampleRate: 24000 });
+            }
+            if (studioAudioCtx.state === "suspended") {
+                studioAudioCtx.resume();
+            }
+
+            const binary = atob(base64Data);
+            const len = binary.length;
+            const numSamples = Math.floor(len / 2);
+            const buffer = studioAudioCtx.createBuffer(1, numSamples, 24000);
+            const channelData = buffer.getChannelData(0);
+
+            const view = new DataView(new ArrayBuffer(len));
+            for (let i = 0; i < len; i++) {
+                view.setUint8(i, binary.charCodeAt(i));
+            }
+            for (let i = 0; i < numSamples; i++) {
+                channelData[i] = view.getInt16(i * 2, true) / 32768.0;
+            }
+
+            const source = studioAudioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(studioAudioCtx.destination);
+            currentAudioSource = source;
+            isSpeaking = true;
+
+            source.onended = () => {
+                if (currentAudioSource === source) {
+                    currentAudioSource = null;
+                    isSpeaking = false;
+                }
+                if (onEnd) onEnd();
+            };
+
+            if (onStart) onStart();
+            source.start(0);
+            return true;
+        } catch (err) {
+            console.warn("PCM audio playback fallback notice:", err);
+            return false;
+        }
+    }
+
+    // High-clarity Web Speech synthesis
+    function speakWebSpeech(cleanedText, onStart, onEnd) {
         if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
             if (onStart) onStart();
-            setTimeout(() => {
-                if (onEnd) onEnd();
-            }, 1000);
+            setTimeout(() => { if (onEnd) onEnd(); }, 1000);
             return;
         }
 
         try {
-            // Unstick Chrome speech synthesis if paused
-            if (synth.paused) {
-                synth.resume();
-            }
+            if (synth.paused) synth.resume();
             synth.cancel();
 
-            // Safe micro-delay prevents Chrome utterance cancellation bug
             setTimeout(() => {
                 try {
-                    const utterance = new SpeechSynthesisUtterance(text);
-
+                    const utterance = new SpeechSynthesisUtterance(cleanedText);
                     const voice = selectJarvisVoice();
+
                     if (voice) {
                         utterance.voice = voice;
                         utterance.lang = voice.lang || "en-US";
@@ -600,17 +726,11 @@ const JarvisVoice = (function() {
                         utterance.lang = "en-US";
                     }
 
-                    // If the available voice is detected as female/generic, shift pitch down to a masculine formant
-                    let effectivePitch = voicePitch;
-                    if (voice && isFemaleVoice(voice)) {
-                        effectivePitch = Math.min(voicePitch, 0.74);
-                    }
-
-                    // Sophisticated natural male assistant pitch
-                    utterance.pitch = Math.min(Math.max(effectivePitch, 0.5), 1.3);
-                    // Brisk, crisp conversational rate (1.40x default)
-                    utterance.rate = Math.min(Math.max(voiceRate, 0.5), 2.0);
-                    utterance.volume = SoundFX.isMuted() ? 0 : 0.95;
+                    // Strict 1.00 pitch to avoid any pitch-shift resampler artifact
+                    utterance.pitch = 1.0;
+                    // Natural unhurried conversational cadence
+                    utterance.rate = Math.min(Math.max(voiceRate, 0.90), 1.15);
+                    utterance.volume = SoundFX.isMuted() ? 0 : 1.0;
 
                     utterance.onstart = () => {
                         isSpeaking = true;
@@ -635,12 +755,33 @@ const JarvisVoice = (function() {
                     if (onEnd) onEnd();
                 }
             }, 25);
-
         } catch (err) {
             console.warn("Unable to trigger speech synthesis:", err);
             isSpeaking = false;
             if (onEnd) onEnd();
         }
+    }
+
+    function speak(text, onStart, onEnd, audioBase64 = null) {
+        if (!text && !audioBase64) return;
+
+        // Play subtle perk chirp before talking
+        SoundFX.play("cute_chirp");
+
+        // 1. If Studio HD audio is supplied, play the crystal-clear 24kHz neural stream
+        if (audioBase64) {
+            const played = playPCM24k(audioBase64, onStart, onEnd);
+            if (played) return;
+        }
+
+        // 2. High-clarity sanitized Web Speech
+        const cleaned = cleanSpokenText(text);
+        if (!cleaned) {
+            if (onEnd) onEnd();
+            return;
+        }
+
+        speakWebSpeech(cleaned, onStart, onEnd);
     }
 
     function cancel() {
@@ -654,20 +795,37 @@ const JarvisVoice = (function() {
 
     function setRate(newRate) {
         const val = parseFloat(newRate);
-        if (!isNaN(val) && val >= 0.5 && val <= 1.8) {
+        if (!isNaN(val) && val >= 0.5 && val <= 1.9) {
             voiceRate = val;
         }
     }
 
     function setPitch(newPitch) {
         const val = parseFloat(newPitch);
-        if (!isNaN(val) && val >= 0.5 && val <= 1.5) {
+        if (!isNaN(val) && val >= 0.5 && val <= 1.3) {
             voicePitch = val;
         }
     }
 
     function setVoiceURI(uri) {
         preferredVoiceURI = uri || "";
+        try {
+            if (uri) {
+                localStorage.setItem("jarvis_voice_uri", uri);
+            } else {
+                localStorage.removeItem("jarvis_voice_uri");
+            }
+        } catch (e) {}
+    }
+
+    function applyPreset(presetKey) {
+        const p = VOICE_PRESETS[presetKey];
+        if (p) {
+            setRate(p.rate);
+            setPitch(p.pitch);
+            return p;
+        }
+        return null;
     }
 
     function getSettings() {
@@ -678,7 +836,8 @@ const JarvisVoice = (function() {
             selectedVoice: selected?.name || "System Default",
             selectedVoiceURI: selected?.voiceURI || "",
             isMale: selected ? isMaleVoice(selected) : false,
-            availableVoices: voices
+            availableVoices: voices,
+            presets: VOICE_PRESETS
         };
     }
 
@@ -688,6 +847,8 @@ const JarvisVoice = (function() {
         setRate: setRate,
         setPitch: setPitch,
         setVoiceURI: setVoiceURI,
+        applyPreset: applyPreset,
+        getPresets: () => VOICE_PRESETS,
         getSettings: getSettings,
         getVoices: () => voices,
         populateVoices: populateVoices,

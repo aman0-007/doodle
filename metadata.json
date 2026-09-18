@@ -1,6 +1,6 @@
 {
-  "name": "Jarvis",
-  "description": "Interactive animated AI digital companion with expressive glowing eyes that react to touches, gestures, battery, and voice commands with intelligent conversational AI.",
+  "name": "Jarvis - AI Companion",
+  "description": "Interactive animated AI companion with expressive glowing eyes, smart conversational voice, and app launcher.",
   "requestFramePermissions": [
     "microphone"
   ],

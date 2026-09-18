@@ -788,7 +788,7 @@ function updateMicUI(listening) {
     }
 }
 
-function doodleSpeakAndEmote(voiceText, bubbleText, expressionName) {
+function doodleSpeakAndEmote(voiceText, bubbleText, expressionName, audioBase64 = null) {
     if (expressionName) {
         playExpression(expressionName);
     }
@@ -823,7 +823,8 @@ function doodleSpeakAndEmote(voiceText, bubbleText, expressionName) {
             } else {
                 isSpeakingResponse = false;
             }
-        }
+        },
+        audioBase64
     );
 }
 
@@ -998,21 +999,120 @@ function smartClientFallback(queryText) {
     };
 }
 
+// Persistent conversational memory for multi-turn Gemini reasoning
+const conversationHistory = [];
+let toastTimeout = null;
+
+function showAppActionToast(name, url) {
+    const toast = document.getElementById("appActionToast");
+    const text = document.getElementById("appActionText");
+    const link = document.getElementById("appActionLink");
+    if (!toast || !text || !link) return;
+
+    text.textContent = `Launch ${name}`;
+    link.href = url || "#";
+    link.textContent = `Open ${name} ↗`;
+    toast.classList.add("show");
+
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 7000);
+}
+
+function launchAppTarget(appName) {
+    if (!appName) return;
+    const cleanApp = appName.trim();
+    const lower = cleanApp.toLowerCase();
+    const appMap = {
+        youtube: { name: "YouTube", url: "https://www.youtube.com" },
+        spotify: { name: "Spotify", url: "https://open.spotify.com" },
+        github: { name: "GitHub", url: "https://github.com" },
+        maps: { name: "Google Maps", url: "https://maps.google.com" },
+        google: { name: "Google", url: "https://www.google.com" },
+        camera: { name: "Camera", url: "https://webcamtoy.com" },
+        weather: { name: "Weather", url: "https://weather.com" },
+        calendar: { name: "Google Calendar", url: "https://calendar.google.com" },
+        mail: { name: "Gmail", url: "https://mail.google.com" },
+        gmail: { name: "Gmail", url: "https://mail.google.com" },
+        calculator: { name: "Calculator", url: "https://www.google.com/search?q=calculator" },
+        clock: { name: "Clock", url: "https://time.is" },
+        notes: { name: "Google Keep", url: "https://keep.google.com" },
+        settings: { name: "Powers & Settings", url: "#" }
+    };
+
+    let matched = null;
+    for (const key of Object.keys(appMap)) {
+        if (lower.includes(key)) {
+            matched = appMap[key];
+            break;
+        }
+    }
+    if (!matched) {
+        matched = {
+            name: cleanApp,
+            url: `https://www.google.com/search?q=${encodeURIComponent(cleanApp)}`
+        };
+    }
+
+    if (matched.name === "Powers & Settings" && powersModal) {
+        powersModal.setAttribute("aria-hidden", "false");
+    }
+
+    showAppActionToast(matched.name, matched.url);
+}
+
+function renderSuggestions(suggestionsList) {
+    const container = document.getElementById("quickSuggestionsRow");
+    if (!container || !Array.isArray(suggestionsList) || !suggestionsList.length) return;
+
+    container.innerHTML = "";
+    suggestionsList.slice(0, 5).forEach(s => {
+        const btn = document.createElement("button");
+        btn.className = "suggest-chip";
+        btn.textContent = s;
+        btn.setAttribute("data-query", s);
+        btn.onclick = () => {
+            executeVoiceCommand(s, false);
+        };
+        container.appendChild(btn);
+    });
+}
+
 async function askJarvisServer(queryText) {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        // Generous 15s timeout allows Gemini 3.8 Flash to reason comfortably
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         const res = await fetch("/api/jarvis/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: queryText }),
+            body: JSON.stringify({
+                message: queryText,
+                history: conversationHistory.slice(-8),
+                context: {
+                    batteryPercent: batteryLevel,
+                    batteryStatus: isCharging ? "Charging" : (batteryLevel < 20 ? "Low" : "Normal"),
+                    currentMood: currentMood
+                }
+            }),
             signal: controller.signal
         });
         clearTimeout(timeoutId);
 
         if (!res.ok) throw new Error("Status " + res.status);
         const data = await res.json();
+
+        // Record turns in conversation history for multi-turn intelligence
+        if (data && data.reply) {
+            conversationHistory.push({ role: 'user', text: queryText });
+            conversationHistory.push({ role: 'model', text: data.reply });
+            if (conversationHistory.length > 14) {
+                conversationHistory.splice(0, conversationHistory.length - 14);
+            }
+        }
+
         return data;
     } catch (err) {
         console.warn("Using smart client fallback:", err.message);
@@ -1029,11 +1129,11 @@ async function executeVoiceCommand(spokenText, isFromMic = false) {
     // 1. If ONLY Jarvis's name is called (e.g. "Jarvis!", "Hey Jarvis", "Jarvis?"):
     if (parsed.isNameOnly || ["hi", "hello", "hey", "what's up", "listen", "you there", "are you there"].includes(parsed.command)) {
         const acknowledgments = [
-            "Yes, I am here. How can I help you?",
+            "Yes, I am here. How may I assist you, sir?",
             "At your service, sir. What do you need?",
             "Online and listening. What's on your mind?",
-            "Standing by. How can I assist you?",
-            "Yes, boss? Ready when you are."
+            "Standing by. All systems operational.",
+            "Yes, boss? Ready whenever you are."
         ];
         const ack = acknowledgments[Math.floor(Math.random() * acknowledgments.length)];
         doodleSpeakAndEmote(ack, "At your service! ✨", "look_up");
@@ -1049,22 +1149,40 @@ async function executeVoiceCommand(spokenText, isFromMic = false) {
     const query = parsed.hasWakeWord ? (parsed.command || parsed.raw) : parsed.raw;
 
     // Show instant visual listening/thinking feedback
-    showMoodBubble("Thinking... 💭", 1600);
+    showMoodBubble("Thinking... 💭", 2000);
     playExpression("thinking");
 
     if (voiceTestOutput) {
         voiceTestOutput.innerHTML = `⏳ <em>Jarvis is processing: "${query}"...</em>`;
     }
 
-    // Fetch intelligent response from Jarvis AI backend (with smart client fallback)
+    // Fetch intelligent response from Jarvis AI backend (powered by Gemini 3.8 Flash)
     const result = await askJarvisServer(query);
 
     if (result && result.reply) {
         doodleSpeakAndEmote(
             result.reply,
             result.bubble || result.reply,
-            result.mood || "happy"
+            result.mood || "happy",
+            result.audioBase64 || null
         );
+
+        // Execute companion actions
+        if (result.action === "shake") {
+            triggerShake();
+        } else if (result.action === "boombox") {
+            playExpression("boombox");
+        }
+
+        // Handle app launcher
+        if (result.app) {
+            launchAppTarget(result.app);
+        }
+
+        // Render follow-up suggestions
+        if (result.suggestions && Array.isArray(result.suggestions)) {
+            renderSuggestions(result.suggestions);
+        }
 
         if (voiceTestOutput) {
             if (result.app) {
@@ -1240,27 +1358,35 @@ function populateVoiceSelector() {
     // Auto Best Male Option
     const autoOpt = document.createElement("option");
     autoOpt.value = "";
-    autoOpt.textContent = `⭐ Auto Best Male (${selectedVoice ? selectedVoice.name : "Detected"})`;
+    autoOpt.textContent = `⭐ Auto Clear Studio Male (${selectedVoice ? selectedVoice.name : "Active"})`;
     voiceSelect.appendChild(autoOpt);
 
     const maleGroup = document.createElement("optgroup");
-    maleGroup.label = "👔 Recommended Male Voices";
+    maleGroup.label = "👔 Recommended Clear Male Voices";
 
     const otherGroup = document.createElement("optgroup");
-    otherGroup.label = "🌐 Other System Voices";
+    otherGroup.label = "🌐 Natural Voices";
 
     let maleCount = 0;
     currentVoices.forEach(v => {
+        // Exclude robotic, metallic, or legacy SAPI voices
+        const nameLower = (v.name || "").toLowerCase();
+        const uriLower = (v.voiceURI || "").toLowerCase();
+        if (nameLower.includes("david desktop") || nameLower.includes("desktop") || nameLower.includes("espeak") || nameLower.includes("fred") || nameLower.includes("zarvox")) {
+            return;
+        }
+
         const isMale = JarvisVoice.isMaleVoice(v);
         const opt = document.createElement("option");
         opt.value = v.voiceURI;
-        const prefix = isMale ? "👔 " : "";
-        opt.textContent = `${prefix}${v.name} (${v.lang})`;
+        const isNatural = /natural|enhanced|neural|online/i.test(v.name);
+        const badge = isNatural ? "✨ " : (isMale ? "👔 " : "");
+        opt.textContent = `${badge}${v.name} (${v.lang})`;
 
         if (isMale) {
             maleGroup.appendChild(opt);
             maleCount++;
-        } else {
+        } else if (!JarvisVoice.isFemaleVoice(v)) {
             otherGroup.appendChild(opt);
         }
     });
@@ -1268,7 +1394,9 @@ function populateVoiceSelector() {
     if (maleCount > 0) {
         voiceSelect.appendChild(maleGroup);
     }
-    voiceSelect.appendChild(otherGroup);
+    if (otherGroup.children.length > 0) {
+        voiceSelect.appendChild(otherGroup);
+    }
 
     if (currentSelectedURI) {
         voiceSelect.value = currentSelectedURI;
@@ -1277,7 +1405,7 @@ function populateVoiceSelector() {
     }
 
     if (voiceSelectedLabel && selectedVoice) {
-        voiceSelectedLabel.textContent = JarvisVoice.isMaleVoice(selectedVoice) ? "Male Active 👔" : "Selected";
+        voiceSelectedLabel.textContent = JarvisVoice.isMaleVoice(selectedVoice) ? "Clear Male 👔" : "Clean Voice";
     }
 }
 
@@ -1319,9 +1447,9 @@ if (voicePitchSlider && voicePitchVal) {
     voicePitchSlider.addEventListener("input", () => {
         const pitch = parseFloat(voicePitchSlider.value);
         JarvisVoice.setPitch(pitch);
-        let toneDesc = "(Deep Male)";
-        if (pitch < 0.8) toneDesc = "(Deep Baritone)";
-        else if (pitch > 1.05) toneDesc = "(Bright Tone)";
+        let toneDesc = "(Clear Natural)";
+        if (pitch > 1.03) toneDesc = "(Bright Tone)";
+        else if (pitch < 0.96) toneDesc = "(Deep Warm)";
         voicePitchVal.textContent = `${pitch.toFixed(2)}x ${toneDesc}`;
     });
 }
@@ -1329,12 +1457,92 @@ if (voicePitchSlider && voicePitchVal) {
 if (previewVoiceBtn) {
     previewVoiceBtn.addEventListener("click", () => {
         doodleSpeakAndEmote(
-            "Jarvis systems fully operational. Ready for your command, sir.",
-            "Jarvis is Online! ⚡",
+            "Jarvis systems fully operational. Voice synthesis is clear, articulate, and natural, sir.",
+            "Clear Voice Active! ⚡",
             "cool"
         );
     });
 }
+
+// Top HUD Male Voice Quick Test Button
+const quickVoiceTestBtn = document.getElementById("quickVoiceTestBtn");
+if (quickVoiceTestBtn) {
+    quickVoiceTestBtn.addEventListener("click", () => {
+        quickVoiceTestBtn.classList.add("active-talking");
+        doodleSpeakAndEmote(
+            "Jarvis online. Systems are operational and voice synthesis is clean and articulate, sir.",
+            "Clear Male Voice 👔",
+            "wink"
+        );
+        setTimeout(() => {
+            quickVoiceTestBtn.classList.remove("active-talking");
+        }, 3000);
+    });
+}
+
+// Voice Presets selector (Clear British, Natural Conversational, Clear Executive, Warm & Crisp)
+const presetButtonsContainer = document.getElementById("presetButtonsContainer");
+if (presetButtonsContainer) {
+    presetButtonsContainer.addEventListener("click", (e) => {
+        const btn = e.target.closest(".preset-btn");
+        if (!btn) return;
+        const presetKey = btn.dataset.preset;
+        const applied = JarvisVoice.applyPreset(presetKey);
+        if (applied) {
+            presetButtonsContainer.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            if (voiceSpeedSlider) voiceSpeedSlider.value = applied.rate;
+            if (voicePitchSlider) voicePitchSlider.value = applied.pitch;
+            if (voiceSpeedVal) voiceSpeedVal.textContent = `${applied.rate.toFixed(2)}x (Natural)`;
+            if (voicePitchVal) voicePitchVal.textContent = `${applied.pitch.toFixed(2)}x (Studio Clean)`;
+            doodleSpeakAndEmote(
+                `Calibrated to ${applied.label}, sir.`,
+                "Preset Active 👔",
+                "happy"
+            );
+        }
+    });
+}
+
+// Quick AI Command Bar (Interactive Assistant Bar)
+const quickCmdInput = document.getElementById("quickCmdInput");
+const quickCmdSendBtn = document.getElementById("quickCmdSendBtn");
+const quickMicBtn = document.getElementById("quickMicBtn");
+
+function handleQuickCommandSubmit() {
+    if (!quickCmdInput) return;
+    const text = quickCmdInput.value.trim();
+    if (!text) return;
+    quickCmdInput.value = "";
+    quickCmdInput.blur();
+    executeVoiceCommand(text, false);
+}
+
+if (quickCmdSendBtn && quickCmdInput) {
+    quickCmdSendBtn.addEventListener("click", handleQuickCommandSubmit);
+    quickCmdInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleQuickCommandSubmit();
+        }
+    });
+}
+
+if (quickMicBtn) {
+    quickMicBtn.addEventListener("click", () => {
+        toggleMicrophone();
+        quickMicBtn.classList.toggle("active", isMicActive);
+    });
+}
+
+// Initialize default suggestion chips
+const initialChips = document.querySelectorAll(".suggest-chip");
+initialChips.forEach(chip => {
+    chip.addEventListener("click", () => {
+        const q = chip.getAttribute("data-query");
+        if (q) executeVoiceCommand(q, false);
+    });
+});
 
 /* =========================================================
    STARTUP INITIALIZATION

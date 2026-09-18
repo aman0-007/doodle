@@ -38,6 +38,10 @@
         </div>
 
         <div class="hud-right">
+            <button id="quickVoiceTestBtn" class="hud-btn voice-hud-btn" title="Click to test Jarvis's male voice">
+                <span>👔</span>
+                <span id="hudVoiceLabel">Male Voice</span>
+            </button>
             <div id="batteryWidget" class="battery-widget" title="Click to cycle battery modes (Auto / Charging / Normal / Low)">
                 <div class="battery-icon-wrap">
                     <div id="batteryFill" class="battery-fill"></div>
@@ -53,6 +57,13 @@
         <div id="doodle">
             <!-- Cute Voice & Mood Speech Bubble (Doodle's voice response) -->
             <div id="mood-bubble" class="mood-bubble" aria-live="polite"></div>
+
+            <!-- Interactive App Action Toast Banner -->
+            <div id="appActionToast" class="app-action-toast" aria-live="polite">
+                <span class="toast-icon">🚀</span>
+                <span id="appActionText" class="toast-text">Launching YouTube...</span>
+                <a id="appActionLink" class="toast-btn" href="#" target="_blank" rel="noopener">Open Now ↗</a>
+            </div>
 
             <!-- Floating Sleeping Zed Structures (Zero Emoji - Custom Geometric Zeds) -->
             <div id="sleep-orbit" class="sleep-orbit" aria-hidden="true">
@@ -141,6 +152,26 @@
         </div>
     </main>
 
+    <!-- Quick AI Command & Chat Bar (Advance Jarvis Tool) -->
+    <div class="quick-cmd-bar" id="quickCmdBar">
+        <div class="quick-cmd-inner">
+            <button id="quickMicBtn" class="quick-mic-icon-btn" title="Toggle Listening">🎤</button>
+            <input type="text" id="quickCmdInput" class="quick-cmd-input" placeholder="Talk to Jarvis or ask Gemini anything... (e.g. 'What can you do?', 'Launch YouTube')" autocomplete="off" />
+            <button id="quickCmdSendBtn" class="quick-cmd-send-btn" title="Send to Jarvis">
+                <span>⚡</span>
+                <span class="send-text">Send</span>
+            </button>
+        </div>
+        <div class="quick-suggestions-row" id="quickSuggestionsRow">
+            <button class="suggest-chip" data-query="What can you do?">⚡ What can you do?</button>
+            <button class="suggest-chip" data-query="What time is it?">⌚ What time is it?</button>
+            <button class="suggest-chip" data-query="Launch YouTube">🚀 Launch YouTube</button>
+            <button class="suggest-chip" data-query="Tell me a joke">😂 Tell a joke</button>
+            <button class="suggest-chip" data-query="Calculate 48 * 25">🧮 48 × 25</button>
+            <button class="suggest-chip" data-query="Play party beats">📻 Party Beats</button>
+        </div>
+    </div>
+
     <!-- Interactive Bottom Dock (Mood & Expression Palette) -->
     <div class="dock-container" id="dockContainer">
         <button id="dockToggle" class="dock-toggle">
@@ -188,12 +219,23 @@
                         </div>
                     </div>
 
+                    <!-- Male Voice Presets -->
+                    <div class="voice-presets-bar">
+                        <span class="preset-label">Male Voice Persona:</span>
+                        <div class="preset-buttons" id="presetButtonsContainer">
+                            <button type="button" class="preset-btn active" data-preset="clear_british">👔 Jarvis Classic (Clear British)</button>
+                            <button type="button" class="preset-btn" data-preset="natural_male">🎙️ Natural Conversational (US)</button>
+                            <button type="button" class="preset-btn" data-preset="articulate_pro">💼 Clear Executive</button>
+                            <button type="button" class="preset-btn" data-preset="warm_calm">☕ Warm &amp; Crisp</button>
+                        </div>
+                    </div>
+
                     <!-- Voice Speed, Pitch & Male Voice Selector -->
                     <div class="voice-tuning-bar" id="voiceTuningBar">
                         <div class="voice-tuning-item voice-select-item">
                             <div class="voice-tuning-label-row">
                                 <span class="voice-tuning-title">Voice Actor:</span>
-                                <span id="voiceSelectedLabel" class="voice-tuning-val">Male Voice</span>
+                                <span id="voiceSelectedLabel" class="voice-tuning-val">Clear Male Active 👔</span>
                             </div>
                             <select id="voiceSelect" class="voice-select-dropdown" aria-label="Select Voice Actor">
                                 <option value="">Auto Best Male Voice</option>
@@ -202,16 +244,16 @@
                         <div class="voice-tuning-item">
                             <div class="voice-tuning-label-row">
                                 <span class="voice-tuning-title">Speech Speed:</span>
-                                <span id="voiceSpeedVal" class="voice-tuning-val">1.40x (Brisk)</span>
+                                <span id="voiceSpeedVal" class="voice-tuning-val">1.00x (Natural)</span>
                             </div>
-                            <input type="range" id="voiceSpeedSlider" min="0.60" max="2.00" step="0.05" value="1.40" class="voice-slider" aria-label="Adjust voice speed" />
+                            <input type="range" id="voiceSpeedSlider" min="0.85" max="1.25" step="0.05" value="1.00" class="voice-slider" aria-label="Adjust voice speed" />
                         </div>
                         <div class="voice-tuning-item">
                             <div class="voice-tuning-label-row">
                                 <span class="voice-tuning-title">Vocal Pitch:</span>
-                                <span id="voicePitchVal" class="voice-tuning-val">0.88x (Deep Male)</span>
+                                <span id="voicePitchVal" class="voice-tuning-val">1.00x (Studio Clean)</span>
                             </div>
-                            <input type="range" id="voicePitchSlider" min="0.65" max="1.20" step="0.05" value="0.88" class="voice-slider" aria-label="Adjust male voice pitch" />
+                            <input type="range" id="voicePitchSlider" min="0.96" max="1.04" step="0.01" value="1.00" class="voice-slider" aria-label="Adjust male voice pitch" />
                         </div>
                         <button id="previewVoiceBtn" class="preview-voice-btn" type="button" title="Hear how Jarvis sounds with current speed and pitch">
                             <span>🔊 Test Male Voice</span>

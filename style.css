@@ -1658,6 +1658,282 @@ html, body {
     transform: translateY(0);
 }
 
+/* =========================================================
+   HUD MALE VOICE TEST BUTTON
+   ========================================================= */
+
+.voice-hud-btn {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.voice-hud-btn:hover {
+    border-color: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+}
+
+.voice-hud-btn.active-talking {
+    border-color: #38ef7d;
+    box-shadow: 0 0 16px rgba(56, 239, 125, 0.5);
+}
+
+/* =========================================================
+   APP ACTION LAUNCH TOAST
+   ========================================================= */
+
+.app-action-toast {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(25, 234, 255, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(25, 234, 255, 0.2);
+    border-radius: 9999px;
+    backdrop-filter: blur(12px);
+    z-index: 60;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-action-toast.show {
+    opacity: 1;
+    pointer-events: auto;
+    bottom: -45px;
+}
+
+.toast-icon {
+    font-size: 15px;
+}
+
+.toast-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.toast-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: #080b12;
+    background: #19eaff;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.toast-btn:hover {
+    background: #38ef7d;
+    transform: scale(1.04);
+}
+
+/* =========================================================
+   QUICK AI COMMAND BAR (Advance Jarvis Interactive Bar)
+   ========================================================= */
+
+.quick-cmd-bar {
+    position: absolute;
+    bottom: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 580px;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.quick-cmd-inner {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(25, 234, 255, 0.08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 9999px;
+    padding: 6px 8px 6px 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.quick-cmd-inner:focus-within {
+    border-color: rgba(25, 234, 255, 0.5);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 0 24px rgba(25, 234, 255, 0.22);
+}
+
+.quick-mic-icon-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.15s, transform 0.15s;
+}
+
+.quick-mic-icon-btn:hover {
+    color: #38ef7d;
+    transform: scale(1.1);
+}
+
+.quick-mic-icon-btn.active {
+    color: #38ef7d;
+    animation: micPulse 1.2s infinite;
+}
+
+.quick-cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: #f1f5f9;
+    font-family: inherit;
+    padding: 4px 6px;
+}
+
+.quick-cmd-input::placeholder {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.quick-cmd-send-btn {
+    background: linear-gradient(135deg, #19eaff, #0099ff);
+    border: none;
+    color: #080b12;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.18s ease;
+    box-shadow: 0 2px 8px rgba(25, 234, 255, 0.35);
+}
+
+.quick-cmd-send-btn:hover {
+    background: linear-gradient(135deg, #38ef7d, #19eaff);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(56, 239, 125, 0.45);
+}
+
+.quick-cmd-send-btn:active {
+    transform: translateY(0) scale(0.96);
+}
+
+/* Quick Suggestion Chips */
+.quick-suggestions-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 2px 4px;
+    scrollbar-width: none;
+}
+
+.quick-suggestions-row::-webkit-scrollbar {
+    display: none;
+}
+
+.suggest-chip {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    color: #94a3b8;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.suggest-chip:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(25, 234, 255, 0.35);
+    color: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+.suggest-chip:active {
+    transform: translateY(0);
+}
+
+/* =========================================================
+   MALE VOICE PRESETS BAR
+   ========================================================= */
+
+.voice-presets-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+}
+
+.preset-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.preset-btn {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #fff;
+}
+
+.preset-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #7dd3fc;
+    font-weight: 600;
+}
+
 
 
 
