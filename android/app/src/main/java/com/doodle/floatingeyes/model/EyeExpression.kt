@@ -66,5 +66,12 @@ enum class MoodType(
         glowColor = Color.parseColor("#F43F5E"),
         leftWidthDp = 36f, leftHeightDp = 38f, leftRadiusDp = 10f,
         rightWidthDp = 36f, rightHeightDp = 38f, rightRadiusDp = 10f
+    ),
+    CONFUSED(
+        label = "Confused",
+        glowColor = Color.parseColor("#94A3B8"),
+        leftWidthDp = 30f, leftHeightDp = 34f, leftRadiusDp = 9f,
+        rightWidthDp = 38f, rightHeightDp = 26f, rightRadiusDp = 9f,
+        leftRotationDeg = -6f, rightRotationDeg = 14f
     )
 }
